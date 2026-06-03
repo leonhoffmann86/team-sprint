@@ -83,3 +83,18 @@ lhtask_model_flags() {
   [ -n "${LHTASK_MODEL:-}" ] && LHTASK_MODEL_FLAGS=(--model "$LHTASK_MODEL")
   return 0
 }
+
+# Human-visible run log in the repo root (gitignored): TODO.run.log. Unlike the
+# per-stage .git/lhtask-*.log files, this is one consolidated, root-level trace you
+# can `tail -f`. Reset at the start of each trigger; each stage appends a header
+# and tees its agent output into it.
+lhtask_runlog_reset() {  # $1 = path to TODO.run.log
+  { printf '# LHTask run — %s\n' "$(date '+%Y-%m-%d %H:%M:%S')"
+    printf '# overwritten on each trigger · follow with: tail -f TODO.run.log\n'; } > "$1"
+}
+lhtask_runlog_stage() {  # $1 = path, $2 = stage label
+  printf '\n===== %s — %s =====\n' "$2" "$(date '+%H:%M:%S')" >> "$1"
+}
+lhtask_runlog_note() {   # $1 = path, $2 = message
+  printf '— %s\n' "$2" >> "$1"
+}

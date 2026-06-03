@@ -44,8 +44,10 @@ You review the branch (`git log <impl-branch>`) and merge or discard.
 
 - **Loop-safe:** agent commits carry `AUTOPLAN_AGENT=1`; the hook skips those.
 - **Kill switch:** `touch .git/autoplan.disabled` to disable the whole chain; remove to re-enable.
+- **Live trace:** `TODO.run.log` in the repo root (gitignored) is a consolidated, human-visible
+  log of the current trigger (PLAN → IMPLEMENT → RESULT, or REVIEW), reset each run — `tail -f` it.
 - **Non-blocking:** runs are detached (~minutes); a placeholder lands in the sidecar at once.
-  Logs: `.git/lhtask-*.log`. Locks: `.git/lhtask-*.lock` (stale locks auto-reaped).
+  Raw per-stage logs: `.git/lhtask-*.log`. Locks: `.git/lhtask-*.lock` (stale locks auto-reaped).
 - **No-op if `claude` is missing.**
 
 Debug a stage synchronously:

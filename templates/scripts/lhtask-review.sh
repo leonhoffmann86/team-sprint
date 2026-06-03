@@ -32,9 +32,13 @@ git rev-parse HEAD~1 >/dev/null 2>&1 || exit 0
 command -v claude >/dev/null 2>&1 || { echo "lhtask-review: claude CLI not found, skipping." >&2; exit 0; }
 
 TARGET="${1:-HEAD}"
+# Chained from implement (a TARGET arg was passed) → append to the existing run
+# log; standalone trigger (no arg) → it owns a fresh run log.
+CHAINED=0; [ "$#" -ge 1 ] && CHAINED=1
 SHA="$(git rev-parse --short "$TARGET" 2>/dev/null || echo "$TARGET")"
 LOCKDIR="$ROOT/.git/lhtask-review.lock"
 LOG="$ROOT/.git/lhtask-review.log"
+RUNLOG="$ROOT/TODO.run.log"
 
 # Decide what to inspect: a branch tip → the range it introduces over HEAD; else
 # the single target commit.
@@ -63,6 +67,9 @@ EOF
 
 lhtask_reap_stale_lock "$LOCKDIR" 15
 mkdir "$LOCKDIR" 2>/dev/null || exit 0
+
+# Standalone trigger owns a fresh run log; chained review appends to the existing one.
+[ "$CHAINED" = 0 ] && lhtask_runlog_reset "$RUNLOG"
 
 printf '> ⏳ Review of %s running since %s … report appears here when done.\n' \
   "$SHA" "$(date '+%H:%M:%S')" > "$ROOT/TODO.review.md"
@@ -110,13 +117,13 @@ lhtask_surface_review() {
 
 do_run() {
   trap 'rmdir "$LOCKDIR" 2>/dev/null || true' EXIT
+  lhtask_runlog_stage "$RUNLOG" "REVIEW (${SHA})"
   # AUTOPLAN_AGENT=1 defensively prevents any git activity from recursing.
-  AUTOPLAN_AGENT=1 claude -p "$PROMPT" \
-    --permission-mode acceptEdits \
-    --allowed-tools Read Write Glob Grep Bash \
-    ${LHTASK_MODEL_FLAGS[@]+"${LHTASK_MODEL_FLAGS[@]}"} \
-    >"$LOG" 2>&1 || true
-  lhtask_surface_review
+  { AUTOPLAN_AGENT=1 claude -p "$PROMPT" \
+      --permission-mode acceptEdits \
+      --allowed-tools Read Write Glob Grep Bash \
+      ${LHTASK_MODEL_FLAGS[@]+"${LHTASK_MODEL_FLAGS[@]}"} 2>&1 || true; } | tee -a "$RUNLOG" >"$LOG"
+  lhtask_surface_review | tee -a "$RUNLOG"
 }
 
 if [ -n "${LHTASK_FOREGROUND:-}" ]; then

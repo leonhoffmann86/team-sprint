@@ -75,6 +75,7 @@ templates/                    # parameterized chain + starters copied by bootstr
 ## Debugging
 
 ```bash
+tail -f TODO.run.log                        # human-visible live trace (reset each trigger)
 LHTASK_FOREGROUND=1 .githooks/post-commit   # run the triggered stage synchronously
-cat .git/lhtask-implement.log               # per-stage logs
+cat .git/lhtask-implement.log               # raw per-stage logs
 ```

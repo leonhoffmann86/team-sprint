@@ -32,6 +32,7 @@ command -v claude >/dev/null 2>&1 || { echo "lhtask-plan: claude CLI not found, 
 SHA="$(git rev-parse --short HEAD)"
 LOCKDIR="$ROOT/.git/lhtask-plan.lock"
 LOG="$ROOT/.git/lhtask-plan.log"
+RUNLOG="$ROOT/TODO.run.log"
 ACTIVE="$(lhtask_strip_skipped "$ROOT/TODO.md")"
 
 read -r -d '' PROMPT <<EOF || true
@@ -56,20 +57,24 @@ EOF
 lhtask_reap_stale_lock "$LOCKDIR" 15
 mkdir "$LOCKDIR" 2>/dev/null || exit 0
 
+# Fresh human-visible run log for this trigger (root, gitignored — tail -f it).
+lhtask_runlog_reset "$RUNLOG"
+
 # Immediate feedback (the run is detached, ~1–2 min, sidecar is gitignored).
 printf '> ⏳ LHTask plan running since %s (commit %s) … result appears here when done.\n' \
   "$(date '+%H:%M:%S')" "$SHA" > "$ROOT/TODO.autoplan.md"
-echo "→ LHTask plan started (commit $SHA); plan in TODO.autoplan.md, then implement on branch ${LHTASK_IMPL_BRANCH} (~minutes)."
+echo "→ LHTask plan started (commit $SHA); live log: TODO.run.log (tail -f). Implement on branch ${LHTASK_IMPL_BRANCH} (~minutes)."
 
 # Plan, then chain implement; release lock on exit. Whitelisted read/write tools.
 do_run() {
   trap 'rmdir "$LOCKDIR" 2>/dev/null || true' EXIT
-  claude -p "$PROMPT" \
-    --permission-mode acceptEdits \
-    --allowed-tools Read Write Edit Glob Grep \
-    ${LHTASK_MODEL_FLAGS[@]+"${LHTASK_MODEL_FLAGS[@]}"} \
-    >"$LOG" 2>&1 || true
-  # STAGE 2: implement the freshly planned items (own lock, own log).
+  lhtask_runlog_stage "$RUNLOG" "PLAN (commit $SHA)"
+  { claude -p "$PROMPT" \
+      --permission-mode acceptEdits \
+      --allowed-tools Read Write Edit Glob Grep \
+      ${LHTASK_MODEL_FLAGS[@]+"${LHTASK_MODEL_FLAGS[@]}"} 2>&1 || true; } | tee -a "$RUNLOG" >"$LOG"
+  lhtask_runlog_note "$RUNLOG" "Plan written → TODO.autoplan.md. Starting implementation …"
+  # STAGE 2: implement the freshly planned items (own lock, own log; tees into RUNLOG itself).
   "$ROOT/scripts/lhtask-implement.sh" >>"$LOG" 2>&1 || true
 }
 

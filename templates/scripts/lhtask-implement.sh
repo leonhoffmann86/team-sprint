@@ -34,6 +34,7 @@ command -v claude >/dev/null 2>&1 || { echo "lhtask-implement: claude CLI not fo
 
 LOCKDIR="$ROOT/.git/lhtask-implement.lock"
 LOG="$ROOT/.git/lhtask-implement.log"
+RUNLOG="$ROOT/TODO.run.log"
 WT="$ROOT/.git/lhtask-worktree"
 BR="${LHTASK_IMPL_BRANCH:-autoplan/impl}"
 
@@ -96,12 +97,12 @@ EOF
 
 cd "$WT"
 echo "→ Implementation running on branch ${BR} (worktree) …"
+lhtask_runlog_stage "$RUNLOG" "IMPLEMENT (branch ${BR})"
 # AUTOPLAN_AGENT=1 → the agent's own commits skip the post-commit hook (no recursion).
-AUTOPLAN_AGENT=1 claude -p "$PROMPT" \
-  --permission-mode acceptEdits \
-  --allowed-tools Read Write Edit Glob Grep Bash \
-  ${LHTASK_MODEL_FLAGS[@]+"${LHTASK_MODEL_FLAGS[@]}"} \
-  >"$LOG" 2>&1 || true
+{ AUTOPLAN_AGENT=1 claude -p "$PROMPT" \
+    --permission-mode acceptEdits \
+    --allowed-tools Read Write Edit Glob Grep Bash \
+    ${LHTASK_MODEL_FLAGS[@]+"${LHTASK_MODEL_FLAGS[@]}"} 2>&1 || true; } | tee -a "$RUNLOG" >"$LOG"
 
 cd "$ROOT"
 # Capture the impl-branch tip before dropping the worktree, for the review stage.
@@ -109,6 +110,9 @@ IMPL_SHA="$(git rev-parse --short "$BR" 2>/dev/null || echo '')"
 BASE_SHA="$(git rev-parse --short HEAD 2>/dev/null || echo '')"
 # Keep the branch (commits persist in the repo); drop the worktree dir.
 git worktree remove --force "$WT" 2>/dev/null || true
+# Summarize the autonomous commits into the run log (human-visible).
+lhtask_runlog_stage "$RUNLOG" "RESULT — commits on ${BR}"
+git log --oneline "$BR" --not HEAD 2>/dev/null | sed 's/^/  /' >> "$RUNLOG" || true
 echo "✓ Implementation done on branch ${BR}. Review: git log ${BR} — then merge or discard."
 
 # Gap fix: review the autonomous commits (the hook won't, AUTOPLAN_AGENT=1).

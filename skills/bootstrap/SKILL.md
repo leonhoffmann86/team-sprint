@@ -60,8 +60,9 @@ file does not already exist** (`cp -n`). Never touch an existing `AGENTS.md`/`CL
 user's conventions win.
 
 ## 5. Update `.gitignore`
-Append (if not already present): `TODO.autoplan.md`, `TODO.review.md`. The `.git/lhtask-*.log`
-and lock files live under `.git/` and are never tracked. Don't duplicate existing entries.
+Append (if not already present): `TODO.autoplan.md`, `TODO.review.md`, `TODO.run.log` (the
+human-visible consolidated run log). The `.git/lhtask-*.log` and lock files live under `.git/`
+and are never tracked. Don't duplicate existing entries.
 
 ## 6. Activate the hooks
 ```bash
