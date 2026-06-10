@@ -7,13 +7,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This is the **source of the `lhtask` Claude Code plugin** — not an application. There is no
 build, lint, or test toolchain. The "code" is:
 
-- two **skills** (`skills/lh-task`, `skills/bootstrap`) — markdown prompt files with frontmatter,
-- a set of **bash templates** (`templates/`) that `bootstrap` copies into a *target* repo.
+- three **skills** (`skills/lh-task`, `skills/bootstrap`, `skills/update`) — markdown prompt files
+  with frontmatter,
+- a set of **bash templates** (`templates/`) that `bootstrap` copies into a *target* repo,
+- the **subagent team** (`agents/*.md`) — six role definitions (planner, navigator, implementer,
+  reviewer-correctness, reviewer-conventions, reviewer-visual) used by the implement loop.
 
 Critical mental model: the scripts in `templates/scripts/` and `templates/githooks/` **do not run
 here**. They are parameterized files that get copied (`cp -n`) into another repo by the `bootstrap`
 skill, where they execute as a git `post-commit` chain. So editing a script here changes what every
 future bootstrapped repo gets; it has no effect on this repo's own git activity.
+
+**Agents are duplicated on purpose:** `agents/` is the plugin-canonical copy (auto-updates with the
+plugin, used by interactive sessions); `templates/.claude/agents/` is the vendored copy that
+`bootstrap` installs into the target repo, because the headless hook chain reads the role bodies via
+`--append-system-prompt` from `$ROOT/.claude/agents/`. **Keep the two directories identical** — edit
+both, or run `/lhtask:update` in target repos after changing them. The same applies to `.mcp.json`
+(codegraph MCP server config) and `templates/.mcp.json`.
 
 ## The plan → implement → review chain (the heart of the plugin)
 
@@ -23,11 +33,30 @@ When bootstrapped into a repo, `templates/githooks/post-commit` routes each comm
   **`lhtask-implement.sh`** in the same detached run.
 - commit changed any `LHTASK_REVIEW_DIRS/` → **`lhtask-review.sh`** (writes `TODO.review.md`, report-only).
 
-`lhtask-implement.sh` runs headless `claude` in an **isolated `git worktree`** on `LHTASK_IMPL_BRANCH`
-(default `autoplan/impl`). It makes **one commit per item** (code + `TODO.md`→`DONE.md` + `AGENT_LOG.md`),
-**never auto-merges**, then itself invokes `lhtask-review.sh` against the impl branch (the hook can't,
-because agent commits set `AUTOPLAN_AGENT=1`). `templates/scripts/lhtask-lib.sh` holds shared helpers
-sourced by all three stages.
+`lhtask-implement.sh` is a **shell-driven subagent-team orchestrator** in an **isolated
+`git worktree`** on `LHTASK_IMPL_BRANCH` (default `autoplan/impl`). It runs **planner → navigator**
+once, then a bounded loop (up to `LHTASK_MAX_ITER`, default 3):
+
+1. **implementer** — smallest change, **one commit per item** (code + `TODO.md`→`DONE.md` +
+   `AGENT_LOG.md`),
+2. **deterministic gate** (`lhtask-gate.sh`, pure shell, no LLM) — lint/typecheck/test/build per
+   `LHTASK_GATE_*`/`LHTASK_STACK` (stack auto-detected from marker files); red → loop back with the
+   failures as the fix list,
+3. **reviewers** (correctness + conventions, read-only) — `blocker`/`major` findings → loop back.
+
+Each role is its **own headless `claude -p`** (not Task-delegation) so the shell can run the gate
+between phases and bound the loop. Role prompts get the matching `agents/<role>.md` body via
+`--append-system-prompt` (frontmatter stripped by `lhtask_agent_body`); roles exchange JSON sidecars
+in `.lhtask-state/` inside the worktree (excluded from commits via the worktree's `info/exclude`).
+**Only `gate.json` is machine-trusted** (shell-authored); agent JSON is parsed jq-or-grep,
+**fail-closed** (missing/garbled review JSON = blocker → loopback, never a silent DONE).
+
+On convergence or exhaustion, `lhtask_findings_surface` publishes `TODO.review.md` and the
+`## 🔎` pointer — the in-loop reviewers replace the old terminal `lhtask-review.sh` call (the hook
+can't review agent commits because they set `AUTOPLAN_AGENT=1`; `LHTASK_REVIEW_AUTONOMOUS=0` leaves
+a gate-only loop). The impl branch is **never auto-merged** and **hard-reset (`-B`) each run** — it
+can carry several unmerged commits, so target-repo users must merge or discard promptly.
+`templates/scripts/lhtask-lib.sh` holds shared helpers sourced by all stages, including the gate.
 
 When changing any stage script, preserve these load-bearing invariants:
 
@@ -43,15 +72,30 @@ When changing any stage script, preserve these load-bearing invariants:
   clears locks older than N minutes so a killed run can't permanently block the chain.
 - **Detached by default:** stages background themselves so the commit returns immediately. Set
   `LHTASK_FOREGROUND=1` to run synchronously (this is the debugging/testing lever).
-- **Graceful no-op:** every stage exits 0 if `claude` (or, for codegraph, `codegraph`) is absent.
+- **Graceful no-op:** every stage exits 0 if `claude` (or, for codegraph, `codegraph`) is absent;
+  the gate records a check whose command is unconfigured or whose tool is off PATH as `skip`,
+  never a hard fail; missing `timeout`/`gtimeout` just means no per-phase timeout.
+- **Permission hardening:** `AUTOPLAN_AGENT=1` is set centrally in `run_phase` (never per
+  call-site). Every role gets the hard deny rules from `lhtask_deny_settings` via `--settings`
+  (`git push`/`git reset --hard`/`git rebase`/`rm -rf`/`Task`/`Agent` — deny is evaluated first
+  and can't be re-allowed); reviewers/planner/navigator run read-only (`dontAsk` + allowlist),
+  the implementer commit-capable (`acceptEdits`). Don't widen these casually.
+- **Fail-closed review parsing:** `lhtask_review_max_severity` treats a missing, empty, or
+  unparseable review sidecar as `blocker`. Keep that direction — a garbled report must loop back,
+  not pass.
 
 ## Configuration is the single source of truth
 
 `templates/lhtask.conf` defines every tunable (review dirs, test command with `{path}` placeholder,
 constitution files, impl branch, venv to symlink, codegraph mode, model override, autonomous-review
-and notify toggles). Defaults are duplicated in two places that **must stay in sync** with the conf:
-`lhtask_load_config` in `lhtask-lib.sh`, and the inline defaults at the top of `post-commit`
-(the hook reads only `LHTASK_REVIEW_DIRS` and `LHTASK_CODEGRAPH` before scripts source the full lib).
+and notify toggles, plus the subagent/gate block: `LHTASK_STACK`, the four `LHTASK_GATE_*` commands,
+`LHTASK_MAX_ITER`, `LHTASK_PHASE_TIMEOUT`, and the stage-2 visual-reviewer keys
+`LHTASK_VISUAL_MAX_DIFF_RATIO`/`LHTASK_DEV_URL`). Defaults are duplicated in two places that
+**must stay in sync** with the conf: `lhtask_load_config` in `lhtask-lib.sh`, and the inline
+defaults at the top of `post-commit` (the hook reads only `LHTASK_REVIEW_DIRS` and
+`LHTASK_CODEGRAPH` before scripts source the full lib). Empty `LHTASK_GATE_*` keys fall back to
+built-in per-stack defaults in `lhtask_gate_cmd` (test additionally falls back to the legacy
+`LHTASK_TEST_CMD`).
 
 ## The constitution preamble
 
@@ -66,9 +110,15 @@ what the autonomous implementer refuses to touch. Behavior is meant to be steere
 Skills are markdown with YAML frontmatter (`name`, `description`, `argument-hint`). `lh-task` is a
 *refinement* workflow (idea → one structured `TODO.md` item; never writes code, never auto-commits).
 `bootstrap` is an *idempotent installer* (`cp -n` everywhere; never clobbers an existing file without
-asking). `bootstrap` resolves templates via `${CLAUDE_PLUGIN_ROOT}/templates` — keep that path
-relationship intact if you move files. The `description` field is what triggers the skill, so keep it
-specific and outcome-oriented.
+asking). `update` *re-syncs the vendored chain* in already-bootstrapped repos (overwrites only logic
+files — scripts, hooks, agents; never `lhtask.conf` or lifecycle files; `--all` consumes the registry
+at `~/.config/lhtask/registry`). Both resolve templates via `${CLAUDE_PLUGIN_ROOT}/templates` — keep
+that path relationship intact if you move files. The `description` field is what triggers the skill,
+so keep it specific and outcome-oriented.
+
+Agent files (`agents/*.md`) carry their own frontmatter (`name`, `description`, `tools`, `model`)
+for interactive use; the headless loop strips it. `reviewer-visual` is a **scaffold** — shipped and
+vendored, but not yet wired into the implement loop.
 
 ## Project commands & doc automation
 

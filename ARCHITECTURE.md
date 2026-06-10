@@ -31,21 +31,26 @@ flowchart LR
         direction TB
         SK1["skills/lh-task/SKILL.md<br/>Idee → 1 TODO-Item"]
         SK2["skills/bootstrap/SKILL.md<br/>idempotenter Installer"]
-        TPL["templates/<br/>githooks/ · scripts/ · lhtask.conf<br/>AGENTS.md · TODO/DONE/AGENT_LOG"]
+        SK3["skills/update/SKILL.md<br/>re-sync der vendored Kette"]
+        AG["agents/*.md<br/>Subagent-Team (6 Rollen)"]
+        TPL["templates/<br/>githooks/ · scripts/ · lhtask.conf · .mcp.json<br/>.claude/agents/ · AGENTS.md · TODO/DONE/AGENT_LOG"]
     end
 
     subgraph TARGET["📦 Ziel-Repo (irgendein Projekt) — hier läuft alles"]
         direction TB
         HOOK[".githooks/post-commit"]
-        SCR["scripts/lhtask-*.sh"]
+        SCR["scripts/lhtask-*.sh<br/>(lib · plan · implement · gate · review)"]
+        VAG[".claude/agents/*.md<br/>(vendored Subagent-Team)"]
         CONF["lhtask.conf<br/>(angepasst an Projekt)"]
         LIFE["TODO.md · DONE.md · AGENT_LOG.md<br/>AGENTS.md (Verfassung)"]
     end
 
     SK2 -- "cp -n  (einmalig, /lhtask:bootstrap)" --> HOOK
     SK2 -- "cp -n" --> SCR
+    SK2 -- "cp -n (vendored Kopie)" --> VAG
     SK2 -- "cp -n + autodetect" --> CONF
     SK2 -- "cp -n (nur falls fehlend)" --> LIFE
+    SK3 -. "überschreibt NUR Logik<br/>(scripts/hooks/agents)" .-> SCR
     SK1 -. "schreibt (im Ziel-Repo)" .-> LIFE
 
     style PLUGIN fill:#eef2ff,stroke:#6366f1
@@ -53,7 +58,12 @@ flowchart LR
 ```
 
 > Konsequenz: Ein Skript hier zu ändern, beeinflusst **jedes künftig gebootstrappte Repo** —
-> aber **nicht** die git-Aktivität dieses Repos selbst.
+> aber **nicht** die git-Aktivität dieses Repos selbst. Bereits gebootstrappte Repos holt
+> `/lhtask:update` nach (nur Logik; `lhtask.conf` + Lifecycle-Dateien bleiben unangetastet).
+>
+> `agents/` (Plugin-kanonisch, interaktiv) und `templates/.claude/agents/` (vendored, von der
+> headless Kette per `--append-system-prompt` gelesen) müssen **identisch** bleiben — beide ändern.
+> Gleiches gilt für `.mcp.json` / `templates/.mcp.json` (codegraph-MCP-Server).
 
 ---
 
@@ -76,7 +86,7 @@ flowchart TB
     subgraph CHAIN["Die autonome Kette — headless claude, via post-commit"]
         direction TB
         PLAN["① PLAN<br/>lhtask-plan.sh<br/>→ TODO.autoplan.md"]
-        IMPL["② IMPLEMENT<br/>lhtask-implement.sh<br/>isolierter worktree, 1 Commit/Item"]
+        IMPL["② IMPLEMENT<br/>lhtask-implement.sh — Subagent-Team:<br/>planner → navigator → Schleife(implementer →<br/>GATE (lhtask-gate.sh) → Reviewer), max LHTASK_MAX_ITER<br/>isolierter worktree, 1 Commit/Item → TODO.review.md"]
         REV["③ REVIEW<br/>lhtask-review.sh<br/>→ TODO.review.md (nur Report)"]
     end
 
@@ -87,10 +97,10 @@ flowchart TB
     HUMAN -- "committet TODO.md" --> COMMIT
     COMMIT --> PLAN
     PLAN -- "chained im selben Lauf" --> IMPL
-    IMPL -- "reviewt eigene Commits" --> REV
-    COMMIT -- "Änderung in Review-Dirs" --> REV
+    COMMIT -- "Änderung in Review-Dirs<br/>(menschliche Commits)" --> REV
 
     REV -. "Report + ❌-Loopback" .-> HUMAN
+    IMPL -. "Report + ❌-Loopback<br/>(In-Loop-Reviewer)" .-> HUMAN
     IMPL -. "Branch autoplan/impl<br/>(nie auto-gemerged)" .-> HUMAN
 
     style SKILLS fill:#eef2ff,stroke:#6366f1
@@ -113,18 +123,23 @@ flowchart LR
     E --> F["1 strukturiertes Item<br/>in TODO.md"]
     F --> G[["git commit TODO.md"]]
     G --> H["① PLAN → TODO.autoplan.md"]
-    H --> I["② IMPLEMENT<br/>(worktree, autoplan/impl)"]
+    H --> I["② IMPLEMENT<br/>(worktree, autoplan/impl)<br/>planner → navigator"]
     I --> J{"Risiko?"}
     J -- "hoch" --> K["🚧 Deferred<br/>(Mensch entscheidet)"]
-    J -- "low/med" --> L{"Test grün?"}
-    L -- "✅" --> M["1 Commit:<br/>Code + TODO→DONE + LOG"]
-    L -- "❌" --> N["Code verwerfen<br/>→ 🚧 Deferred + Grund"]
-    M --> O["③ REVIEW des Branches<br/>→ TODO.review.md"]
+    J -- "low/med" --> M["implementer: 1 Commit:<br/>Code + TODO→DONE + LOG"]
+    M --> L{"GATE grün?<br/>(lint/type/test/build)"}
+    L -- "❌ rot" --> M2["Loopback: nur die<br/>Findings fixen"]
+    M2 --> M
+    L -- "✅" --> RV{"Reviewer:<br/>blocker/major?"}
+    RV -- "ja" --> M2
+    RV -- "nein → DONE" --> O["TODO.review.md (Ampel)<br/>+ Branch bleibt stehen"]
+    M2 -. "LHTASK_MAX_ITER erschöpft" .-> ESC["🔎 Review-Findings<br/>+ AGENT_LOG (eskaliert)"]
     O --> P{"Mensch:<br/>mergen?"}
     P -- "ja" --> Q["merge autoplan/impl"]
     P -- "nein" --> R["verwerfen"]
 
     style K fill:#fef2f2,stroke:#dc2626
+    style ESC fill:#fffbeb,stroke:#d97706
     style M fill:#f0fdf4,stroke:#16a34a
     style Q fill:#f0fdf4,stroke:#16a34a
 ```
@@ -168,8 +183,10 @@ flowchart TB
 
 ## 5. Die Kette als Sequenz
 
-Der vollständige Ablauf eines `TODO.md`-Commits über alle Akteure hinweg — inklusive
-der Selbst-Review der autonomen Arbeit.
+Der vollständige Ablauf eines `TODO.md`-Commits über alle Akteure hinweg — die Implement-Stage
+orchestriert ein Subagent-Team (jede Rolle ein eigener headless `claude -p`-Aufruf, mit
+Rollen-Body aus `.claude/agents/<rolle>.md` via `--append-system-prompt`) plus den
+deterministischen Gate.
 
 ```mermaid
 sequenceDiagram
@@ -177,10 +194,10 @@ sequenceDiagram
     actor U as 👤 Mensch
     participant H as post-commit
     participant P as lhtask-plan.sh
-    participant I as lhtask-implement.sh
+    participant I as lhtask-implement.sh<br/>(Orchestrator, reine Shell)
     participant W as git worktree<br/>(autoplan/impl)
-    participant C as headless claude
-    participant R as lhtask-review.sh
+    participant C as headless claude<br/>(Rolle pro Aufruf)
+    participant G as lhtask-gate.sh<br/>(deterministisch, kein LLM)
 
     U->>H: commit TODO.md
     H->>H: Guards (AGENT? disabled? HEAD~1?)
@@ -195,37 +212,44 @@ sequenceDiagram
     deactivate P
 
     activate I
-    I->>W: git worktree add -B autoplan/impl HEAD
-    Note over I,W: venv + codegraph.db symlinken
-    I->>C: Implement-Prompt (ACTIVE + PLAN + DONE)
-    activate C
-    loop pro aktivem Item
-        C->>C: Risiko klassifizieren
-        alt high-risk
-            C->>W: Item → 🚧 Deferred (nicht implementiert)
-        else low/medium
-            C->>W: Test (LHTASK_TEST_CMD)
-            alt grün
-                C->>W: 1 Commit: Code + TODO→DONE + AGENT_LOG
-            else rot
-                C->>W: Code verwerfen → 🚧 Deferred + Grund
+    I->>W: git worktree add -f -B autoplan/impl HEAD
+    Note over I,W: venv + codegraph.db symlinken ·<br/>.lhtask-state/ via info/exclude von Commits ausgeschlossen
+    I->>C: Rolle PLANNER (read-only)
+    C-->>I: .lhtask-state/plan.json (Risiko, Akzeptanzkriterien; high-risk → defer)
+    I->>C: Rolle NAVIGATOR (read-only, codegraph)
+    C-->>I: .lhtask-state/navigation.json (Konventionen, Blast Radius)
+    loop bis LHTASK_MAX_ITER (default 3)
+        I->>C: Rolle IMPLEMENTER (acceptEdits + Deny-Rules)
+        C->>W: 1 Commit: Code + TODO→DONE + AGENT_LOG<br/>(high-risk → 🚧 Deferred, doc-only Commit)
+        I->>G: GATE: lint / typecheck / test / build
+        alt Gate rot
+            G-->>I: gate.json (verdict fail) → Loopback mit Findings
+        else Gate grün + LHTASK_REVIEW_AUTONOMOUS=1
+            I->>C: Rolle REVIEWER-CORRECTNESS (read-only)
+            I->>C: Rolle REVIEWER-CONVENTIONS (read-only)
+            C-->>I: .lhtask-state/review-*.json (fail-closed geparst)
+            alt blocker/major
+                I->>I: Loopback mit Reviewer-Findings
+            else sauber
+                I->>I: STATUS=done → Schleife verlassen
             end
         end
     end
-    Note right of C: alle Commits mit<br/>AUTOPLAN_AGENT=1
-    deactivate C
-    I->>I: IMPL_SHA merken, worktree entfernen<br/>(Branch bleibt!)
-    I->>R: Review des Branches (LHTASK_REVIEW_AUTONOMOUS=1)
+    Note right of C: jede Rolle läuft mit<br/>AUTOPLAN_AGENT=1 +<br/>Timeout (LHTASK_PHASE_TIMEOUT)
+    I->>I: lhtask_findings_surface: TODO.review.md (Ampel)<br/>+ ❌→🔎 in TODO.md + AGENT_LOG
+    I->>I: worktree entfernen (Branch bleibt!)<br/>nicht konvergiert → Eskalations-Note
     deactivate I
-
-    activate R
-    R->>C: Review-Prompt (git log HEAD..autoplan/impl)
-    C-->>R: TODO.review.md (✅/⚠️/❌ je Aspekt)
-    R->>R: surface: Ampel + ❌→🔎 in TODO.md + AGENT_LOG
-    deactivate R
-    R-->>U: "✅ x ⚠️ y ❌ z — siehe TODO.review.md"
+    I-->>U: "✅ x ⚠️ y ❌ z — siehe TODO.review.md"
     U->>U: git log autoplan/impl → mergen oder verwerfen
 ```
+
+> Die In-Loop-Reviewer ersetzen den früheren terminalen `lhtask-review.sh`-Aufruf am Ende der
+> Implement-Stage (der Hook kann Agent-Commits nicht reviewen, weil sie `AUTOPLAN_AGENT=1`
+> setzen). `lhtask-review.sh` läuft weiterhin für **menschliche** Commits in den Review-Dirs —
+> report-only. `LHTASK_REVIEW_AUTONOMOUS=0` schaltet die Reviewer-Phase ab (Gate-only-Schleife).
+> Nur `gate.json` ist maschinen-vertrauenswürdig (von der Shell geschrieben); Agent-JSON wird
+> jq-oder-grep und **fail-closed** gelesen (fehlend/kaputt = blocker → Loopback, nie stilles DONE).
+> `reviewer-visual` ist als Scaffold dabei, aber noch **nicht** in die Schleife verdrahtet.
 
 ---
 
@@ -247,6 +271,7 @@ flowchart TB
         WT_IMPL["isolierter Checkout<br/>branch: autoplan/impl"]
         LN1["↳ .venv (symlink)"]
         LN2["↳ .codegraph/codegraph.db (symlink)"]
+        ST["↳ .lhtask-state/ — Rollen-Sidecars<br/>(plan/navigation/gate/review-*.json)<br/>via info/exclude nie committet"]
     end
 
     WT_MAIN -- "git worktree add -f -B autoplan/impl HEAD" --> WT_IMPL
@@ -266,6 +291,11 @@ flowchart TB
 > **Vor** dem Anlegen wird hart aufgeräumt (`worktree remove --force` → `rm -rf` →
 > `worktree prune`), damit eine verwaiste Registrierung eines abgebrochenen Laufs den
 > neuen `worktree add` nicht blockiert.
+>
+> **Merge-Disziplin:** `-B` setzt den Branch bei jedem Lauf hart auf HEAD zurück, und die
+> Schleife kann bis zu `LHTASK_MAX_ITER` ungemergte Commits hinterlassen — den Branch zeitnah
+> reviewen und **mergen oder verwerfen**; ein liegengebliebener Branch wird beim nächsten Lauf
+> überschrieben.
 
 ---
 
@@ -285,14 +315,18 @@ flowchart LR
 
     subgraph SIDECARS["gitignored Sidecars (Agent-Output)"]
         AUTOPLAN["TODO.autoplan.md<br/>Plan-Vorschläge"]
-        REVIEW["TODO.review.md<br/>Review-Report"]
+        REVIEW["TODO.review.md<br/>Review-Report (Ampel)"]
         RUNLOG["TODO.run.log<br/>Live-Trace (tail -f)"]
+        STATE[".lhtask-state/<br/>Rollen-Sidecars (JSON)"]
     end
 
     TODO -- "Item erledigt" --> DONE
     PLAN_S["① Plan"] --> AUTOPLAN
     IMPL_S["② Implement"] --> DONE
     IMPL_S --> LOG
+    IMPL_S --> STATE
+    IMPL_S -- "Gate + In-Loop-Reviewer" --> REVIEW
+    IMPL_S -- "❌ / nicht konvergiert" --> TODO
     REV_S["③ Review"] --> REVIEW
     REV_S -- "❌ gefunden" --> TODO
 
@@ -343,9 +377,15 @@ flowchart TB
 Zwei weitere Konsequenzen derselben Variable:
 
 - Weil Agent-Commits den Hook überspringen, kann er die autonome Arbeit **nicht** selbst
-  reviewen → deshalb ruft `lhtask-implement.sh` die Review-Stage am Ende **selbst** auf.
-- Auch Plan- und Review-Stage setzen `AUTOPLAN_AGENT=1` defensiv, damit jede git-Aktivität
-  von innen heraus nicht rekursiert.
+  reviewen → deshalb laufen die **In-Loop-Reviewer** (correctness + conventions) direkt in
+  der Implement-Schleife (`LHTASK_REVIEW_AUTONOMOUS=1`).
+- `AUTOPLAN_AGENT=1` wird in `lhtask-implement.sh` **zentral in `run_phase`** gesetzt (nie pro
+  Call-Site), und auch die Review-Stage setzt es defensiv — keine Rolle kann den Hook rekursieren.
+
+Dazu kommen harte Deny-Rules für jede Rolle (`lhtask_deny_settings`, via `--settings`):
+`git push` / `git reset --hard` / `git rebase` / `rm -rf` / Task / Agent sind verboten — Deny wird
+zuerst ausgewertet und kann von keiner Ebene re-allowed werden. Reviewer/Planner/Navigator laufen
+read-only (`dontAsk` + Allowlist), der Implementer commit-fähig (`acceptEdits`).
 
 ---
 
@@ -370,7 +410,11 @@ flowchart TB
 ```
 
 - `mkdir` als atomares Lock (ein Lauf gewinnt; Nebenläufer steigen sauber aus).
-- `reap_stale_lock` verhindert, dass ein gekillter Lauf die Kette permanent blockiert.
+- `reap_stale_lock` verhindert, dass ein gekillter Lauf die Kette permanent blockiert
+  (Plan/Review: 15 min, Implement: 30 min).
+- Jede headless Phase läuft unter `timeout`/`gtimeout` (`LHTASK_PHASE_TIMEOUT`, default 600 s) —
+  das begrenzt auch, wie lange der längere Implement-Lauf das Lock hält. Kein timeout-Tool
+  installiert → Graceful No-op.
 - **Detached by default** → der Commit kehrt sofort zurück, ein Platzhalter landet sofort
   im Sidecar. `LHTASK_FOREGROUND=1` ist der Debug-/Test-Hebel (synchron).
 
@@ -385,19 +429,24 @@ flowchart TB
     S0["/lhtask:bootstrap"] --> S1["Templates finden<br/>${CLAUDE_PLUGIN_ROOT}/templates"]
     S1 --> S2{"git-Repo?"}
     S2 -- "nein" --> OFFER["git init anbieten"]
-    S2 -- "ja" --> S3["Projekttyp erkennen<br/>pyproject/package.json/go.mod/Cargo.toml"]
-    S3 --> S4["Config-Defaults vorschlagen<br/>TEST_CMD · VENV · REVIEW_DIRS"]
-    S4 --> S5["cp -n: Hooks + scripts/<br/>(clobbert nie)"]
+    S2 -- "ja" --> S3["Projekttyp erkennen<br/>pyproject/package.json/composer.json/go.mod/Cargo.toml"]
+    S3 --> S4["Config-Defaults vorschlagen<br/>TEST_CMD · VENV · REVIEW_DIRS<br/>+ Gate-Block (STACK · GATE_*)"]
+    S4 --> S5["cp -n: Hooks + scripts/ (inkl. lhtask-gate.sh)<br/>+ .claude/agents/ (Subagent-Team)<br/>+ .mcp.json (codegraph; mergen, nie clobbern)"]
     S5 --> S6["lhtask.conf schreiben<br/>(mit erkannten Werten)"]
     S6 --> S7["Lifecycle + AGENTS.md seeden<br/>(nur falls fehlend)"]
-    S7 --> S8[".gitignore ergänzen<br/>autoplan/review/run.log"]
+    S7 --> S8[".gitignore ergänzen<br/>autoplan/review/run.log + .lhtask-state/"]
     S8 --> S9["git config core.hooksPath .githooks"]
-    S9 --> S10[".claude/settings.json<br/>Allowlist mergen (keine abs. Pfade)"]
+    S9 --> S10[".claude/settings.json<br/>Allowlist + Deny-Block mergen<br/>(keine abs. Pfade)"]
     S10 --> DONE(["✅ Repo ist plug-and-play"])
 
     style DONE fill:#f0fdf4,stroke:#16a34a
     style OFFER fill:#fffbeb,stroke:#d97706
 ```
+
+> Nach einem Plugin-Update bringt **`/lhtask:update`** die vendored Logik (Scripts, Hooks,
+> Agents, ggf. `.mcp.json`-Merge) im Repo auf Stand — `lhtask.conf` und die Lifecycle-Dateien
+> bleiben unangetastet; neue Config-Keys werden nur als Drift gemeldet. `--all` aktualisiert
+> alle in `~/.config/lhtask/registry` registrierten Repos.
 
 ---
 
@@ -422,14 +471,19 @@ flowchart LR
 | Key | Bedeutung |
 | --- | --- |
 | `LHTASK_REVIEW_DIRS` | Dirs, deren Änderung die Review-Stage triggert (z. B. `src tests`) |
-| `LHTASK_TEST_CMD` | Test, der grün sein muss; `{path}` → vom Agent gewähltes Ziel |
+| `LHTASK_TEST_CMD` | Legacy-Testkommando; Fallback für `LHTASK_GATE_TEST`; `{path}` → Ziel |
 | `LHTASK_CONSTITUTION_FILES` | Dateien, die jede Stage zuerst liest (default `AGENTS.md`) |
 | `LHTASK_IMPL_BRANCH` | Branch der Implement-Stage (default `autoplan/impl`) |
 | `LHTASK_VENV` | venv, das in den worktree gesymlinkt wird (Python); leer für Node/Go |
 | `LHTASK_CODEGRAPH` | `auto` \| `on` \| `off` |
 | `LHTASK_MODEL` | Modell-Override für headless-Läufe (leer = default) |
-| `LHTASK_REVIEW_AUTONOMOUS` | `1` = auch die impl-Branch-Commits reviewen |
+| `LHTASK_REVIEW_AUTONOMOUS` | `1` = In-Loop-Reviewer in der Implement-Schleife (`0` = Gate-only) |
 | `LHTASK_NOTIFY` | `1` = Desktop-Notification bei Review-Ende |
+| `LHTASK_STACK` | Stack für den Gate: `auto` (Marker-Dateien) \| `nextjs` \| `react` \| `node` \| `python` \| `php` \| `go` \| `rust` |
+| `LHTASK_GATE_LINT` / `_TYPECHECK` / `_TEST` / `_BUILD` | Gate-Kommandos je Check; leer = Stack-Default (Test: Fallback `LHTASK_TEST_CMD`); fehlendes Tool = skip |
+| `LHTASK_MAX_ITER` | Max. Iterationen der implement↔gate↔review-Schleife (default 3) |
+| `LHTASK_PHASE_TIMEOUT` | Timeout (s) pro headless `claude -p`-Phase (default 600) |
+| `LHTASK_VISUAL_MAX_DIFF_RATIO` / `LHTASK_DEV_URL` | Stage 2 (visual reviewer — Scaffold, noch nicht verdrahtet) |
 
 ---
 
