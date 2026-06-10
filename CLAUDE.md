@@ -105,7 +105,12 @@ When changing any stage script, preserve these load-bearing invariants:
 ## Configuration is the single source of truth
 
 `templates/lhtask.conf` defines every tunable (review dirs, test command with `{path}` placeholder,
-constitution files, impl branch, venv to symlink, codegraph mode, model override, autonomous-review
+constitution files, impl branch, venv to symlink, codegraph mode, the model block — global
+`LHTASK_MODEL` plus the per-role overrides `LHTASK_MODEL_{PLAN,PLANNER,NAVIGATOR,IMPLEMENTER,
+REVIEWER_CORRECTNESS,REVIEWER_CONVENTIONS,REVIEW}`, resolved per phase by `lhtask_model_flags [role]`
+(role-specific → `LHTASK_MODEL` → CLI default; role names map uppercase with `-`→`_`, e.g.
+`reviewer-correctness` → `LHTASK_MODEL_REVIEWER_CORRECTNESS`) so implementer and reviewers can run
+on different models — autonomous-review
 and notify toggles, plus the subagent/gate block: `LHTASK_STACK`, the four `LHTASK_GATE_*` commands,
 the fallow keys `LHTASK_FALLOW` (`auto`/`off`) and `LHTASK_FALLOW_CMD` (full command override,
 `{base}` placeholder), `LHTASK_MAX_ITER`, `LHTASK_PHASE_TIMEOUT`, and the stage-2 visual-reviewer keys
@@ -143,8 +148,9 @@ skills** (invoking the skill then returns the instruction-less wrapper body; thi
 v0.3.3 removed).
 
 Agent files (`agents/*.md`) carry their own frontmatter (`name`, `description`, `tools`, `model`)
-for interactive use; the headless loop strips it. `reviewer-visual` is a **scaffold** — shipped and
-vendored, but not yet wired into the implement loop.
+for interactive use; the headless loop strips it — headless model choice comes solely from the
+`LHTASK_MODEL*` keys in `lhtask.conf`, never from agent frontmatter. `reviewer-visual` is a
+**scaffold** — shipped and vendored, but not yet wired into the implement loop.
 
 ## Project commands & doc automation
 
@@ -174,10 +180,12 @@ silently forgotten. If you add a real exclusion, change it in *both* places.
 
 ## Testing changes to the chain
 
-`tests/smoke-test.sh` is the end-to-end smoke test: it bootstraps the plugin into a throwaway repo
+`tests/smoke-test.sh` is the end-to-end smoke test: it starts with a claude-free unit section
+covering the `lhtask_model_flags` resolution chain (role beats global, fallback, name mapping),
+then bootstraps the plugin into a throwaway repo
 (`claude -p --plugin-dir … "/lhtask:bootstrap"`), commits a `TODO.md` task, runs the chain with
-`LHTASK_FOREGROUND=1`, and asserts `TODO.run.log` was produced. It needs the `claude` CLI, so it is
-not run in CI. To debug a change manually, bootstrap into a throwaway git repo and use:
+`LHTASK_FOREGROUND=1`, and asserts `TODO.run.log` was produced. The E2E part needs the `claude`
+CLI, so it is not run in CI. To debug a change manually, bootstrap into a throwaway git repo and use:
 
 ```bash
 LHTASK_FOREGROUND=1 .githooks/post-commit   # run the triggered stage synchronously

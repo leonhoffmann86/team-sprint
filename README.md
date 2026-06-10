@@ -1,7 +1,7 @@
 # LHTask — Autonomous TODO Workflow for Claude Code
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-0.3.3-blue)](https://github.com/leonhoffmann86/lhtask-plugin)
+[![Version](https://img.shields.io/badge/version-0.4.0-blue)](https://github.com/leonhoffmann86/lhtask-plugin)
 [![Built for Claude Code](https://img.shields.io/badge/Built_for-Claude_Code-orange)](https://claude.ai/code)
 
 **Turn a rough idea into a reviewed, tested implementation — automatically.**
@@ -85,7 +85,7 @@ automation* below) — start here:
 - **[skills/lh-task/SKILL.md](skills/lh-task/SKILL.md)** — the idea → one structured TODO item refinement workflow.
 - **[skills/bootstrap/SKILL.md](skills/bootstrap/SKILL.md)** — the idempotent installer that scaffolds the chain into a repo.
 - **[skills/update/SKILL.md](skills/update/SKILL.md)** — re-syncs the vendored chain in bootstrapped repos after a plugin update.
-- **[templates/lhtask.conf](templates/lhtask.conf)** — the single config (review dirs, gate commands, impl branch, max iterations, model, …).
+- **[templates/lhtask.conf](templates/lhtask.conf)** — the single config (review dirs, gate commands, impl branch, max iterations, per-role models, …).
 - **[templates/AGENTS.md](templates/AGENTS.md)** — the starter *constitution* whose risk tiers the autonomous implementer obeys.
 - **[templates/githooks/README.md](templates/githooks/README.md)** — what the installed `post-commit` chain does, stage by stage.
 - **[docs/DISTRIBUTION.md](docs/DISTRIBUTION.md)** — the binding distribution & separation model (GitHub-only install, one-way data flow, pull-based updates).

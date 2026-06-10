@@ -250,7 +250,7 @@ sequenceDiagram
             end
         end
     end
-    Note right of C: jede Rolle läuft mit<br/>AUTOPLAN_AGENT=1 +<br/>Timeout (LHTASK_PHASE_TIMEOUT)
+    Note right of C: jede Rolle läuft mit<br/>AUTOPLAN_AGENT=1 +<br/>Timeout (LHTASK_PHASE_TIMEOUT)<br/>+ eigenem Modell (LHTASK_MODEL_&lt;ROLLE&gt;<br/>→ LHTASK_MODEL → CLI-Default)
     I->>I: lhtask_findings_surface: TODO.review.md (Ampel)<br/>+ ❌→🔎 in TODO.md + AGENT_LOG
     I->>I: worktree entfernen (Branch bleibt!)<br/>nicht konvergiert → Eskalations-Note
     deactivate I
@@ -499,7 +499,8 @@ flowchart LR
 | `LHTASK_IMPL_BRANCH` | Branch der Implement-Stage (default `autoplan/impl`) |
 | `LHTASK_VENV` | venv, das in den worktree gesymlinkt wird (Python); leer für Node/Go |
 | `LHTASK_CODEGRAPH` | `auto` \| `on` \| `off` |
-| `LHTASK_MODEL` | Modell-Override für headless-Läufe (leer = default) |
+| `LHTASK_MODEL` | Globaler Modell-Override für headless-Läufe (leer = CLI-Default) |
+| `LHTASK_MODEL_PLAN` / `_PLANNER` / `_NAVIGATOR` / `_IMPLEMENTER` / `_REVIEWER_CORRECTNESS` / `_REVIEWER_CONVENTIONS` / `_REVIEW` | Modell pro Rolle/Stage; Auflösung rollenspezifisch → `LHTASK_MODEL` → CLI-Default (`lhtask_model_flags [rolle]`, pro Phase in `run_phase` aufgelöst) — so können Implementer und Reviewer auf **verschiedenen** Modellen laufen (keine gemeinsamen Blind Spots) |
 | `LHTASK_REVIEW_AUTONOMOUS` | `1` = In-Loop-Reviewer in der Implement-Schleife (`0` = Gate-only) |
 | `LHTASK_NOTIFY` | `1` = Desktop-Notification bei Review-Ende |
 | `LHTASK_STACK` | Stack für den Gate: `auto` (Marker-Dateien) \| `nextjs` \| `react` \| `node` \| `python` \| `php` \| `go` \| `rust` |
@@ -519,5 +520,5 @@ tail -f TODO.run.log                        # konsolidierter Live-Trace (pro Tri
 LHTASK_FOREGROUND=1 .githooks/post-commit   # getriggerte Stage synchron ausführen
 cat .git/lhtask-implement.log               # roher Per-Stage-Log
 touch .git/autoplan.disabled                # Killswitch (entfernen = wieder an)
-bash tests/smoke-test.sh                    # End-to-End-Smoke-Test (Wegwerf-Repo, braucht claude-CLI)
+bash tests/smoke-test.sh                    # Smoke-Test: Unit-Teil (Modell-Auflösung, ohne claude) + E2E (Wegwerf-Repo, braucht claude-CLI)
 ```
