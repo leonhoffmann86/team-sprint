@@ -99,8 +99,14 @@ When changing any stage script, preserve these load-bearing invariants:
 - **Tooling visibility (graceful, never silent):** degraded tooling must be REPORTED —
   `lhtask_tooling_to_md` writes the `### Tooling` section of every `TODO.review.md` (in-loop via
   `lhtask_findings_surface` and standalone in `lhtask-review.sh`): codegraph (binary **and** repo
-  index), fallow, jq, timeout as ✅/⚠️ with install hint and concrete impact; a deliberate `off`
-  config shows as a neutral note, ⚠️ counts into the traffic-light summary. The `bootstrap` and
+  index), fallow, jq, timeout as ✅/⚠️ with install hint and concrete impact, plus two conditional
+  lines — `curl` only when a cross-vendor model is configured (`lhtask_any_xvendor`; it powers the
+  proxy probe) and the desktop notifier only when `LHTASK_NOTIFY=1`. A deliberate `off`
+  config shows as a neutral note, ⚠️ counts into the traffic-light summary. Gate checks skipped
+  because their **tool is missing** render as ⚠️ with an install/`LHTASK_GATE_<NAME>` hint
+  (fallow: `LHTASK_FALLOW_CMD`) via `lhtask_json_checks_to_md` — this covers all per-stack tools
+  generically (eslint, tsc, ruff, pytest, cargo, …); "no command configured" stays a neutral
+  note. The `bootstrap` and
   `update` skills run the same check as a mandatory step. Don't let a new tool skip silently.
 - **Permission hardening:** `AUTOPLAN_AGENT=1` is set centrally in `run_phase` (never per
   call-site). Every role gets the hard deny rules from `lhtask_deny_settings` via `--settings`
@@ -209,7 +215,8 @@ silently forgotten. If you add a real exclusion, change it in *both* places.
 covering the `lhtask_model_flags` resolution chain (role beats global, fallback, name mapping) and
 its cross-vendor branch (prefix parsing, env injection, no-proxy/unreachable fallback + recording,
 forced-Claude retry, `lhtask_model_is_xvendor`) plus the tooling surface (`lhtask_tooling_to_md`
-reports every supporting tool; `off` → neutral note), then bootstraps the plugin into a throwaway repo
+reports every supporting tool; `off` → neutral note; conditional curl/notifier lines; missing-tool
+gate skips rendered as ⚠️ with config hint), then bootstraps the plugin into a throwaway repo
 (`claude -p --plugin-dir … "/lhtask:bootstrap"`), commits a `TODO.md` task, runs the chain with
 `LHTASK_FOREGROUND=1`, and asserts `TODO.run.log` was produced. The E2E part needs the `claude`
 CLI, so it is not run in CI. To debug a change manually, bootstrap into a throwaway git repo and use:

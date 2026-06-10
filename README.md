@@ -1,7 +1,7 @@
 # LHTask — Autonomous TODO Workflow for Claude Code
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-0.6.0-blue)](https://github.com/leonhoffmann86/lhtask-plugin)
+[![Version](https://img.shields.io/badge/version-0.7.0-blue)](https://github.com/leonhoffmann86/lhtask-plugin)
 [![Built for Claude Code](https://img.shields.io/badge/Built_for-Claude_Code-orange)](https://claude.ai/code)
 
 **Turn a rough idea into a reviewed, tested implementation — automatically.**
@@ -69,7 +69,7 @@ This is powerful — and taken seriously:
 | **Stuck locks** | `mkdir`-based locks with automatic stale-reaping prevent deadlocks from killed runs |
 | **Emergency stop** | `touch .git/autoplan.disabled` — instant kill switch for the entire chain |
 | **Human oversight** | The impl branch is **never auto-merged**; high-risk items are deferred to `## 🚧 Deferred` and never touched autonomously |
-| **Silent degradation** | Cross-vendor model fallbacks and missing supporting tools (codegraph, fallow, jq, timeout) are reported in every `TODO.review.md` (`### Model fallbacks` / `### Tooling`) — graceful, never silent |
+| **Silent degradation** | Cross-vendor model fallbacks and every missing tool the chain touches (codegraph, fallow, jq, timeout, gate tools like eslint/pytest, curl & notifier when relevant) are reported in every `TODO.review.md` (`### Model fallbacks` / `### Tooling`) — graceful, never silent |
 
 > **Before installing any git-hook-based plugin**, audit its scripts and understand
 > what it does on your machine. LHTask is MIT-licensed and the full source is right here.

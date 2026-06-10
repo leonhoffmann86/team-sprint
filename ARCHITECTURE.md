@@ -287,7 +287,12 @@ sequenceDiagram
 >
 > **Tooling-Sichtbarkeit:** jede `TODO.review.md` (In-Loop-Surface **und** Standalone-Review) endet
 > mit einem `### Tooling`-Abschnitt (`lhtask_tooling_to_md`): codegraph (Binary **und** Repo-Index),
-> fallow, jq, timeout als ✅/⚠️ mit Install-Hinweis und konkretem Impact. Die Kette degradiert
+> fallow, jq, timeout als ✅/⚠️ mit Install-Hinweis und konkretem Impact — dazu konditional `curl`
+> (nur bei konfiguriertem Cross-Vendor-Modell, `lhtask_any_xvendor`; speist den Proxy-Probe) und
+> der Desktop-Notifier (nur bei `LHTASK_NOTIFY=1`). Gate-Checks, die wegen eines **fehlenden
+> Tools** übersprungen wurden, erscheinen als ⚠️ mit Install-/`LHTASK_GATE_<NAME>`-Hinweis
+> (fallow: `LHTASK_FALLOW_CMD`) — generisch für alle Stack-Tools (eslint, tsc, ruff, pytest,
+> cargo, …); „kein Kommando konfiguriert“ bleibt eine neutrale Notiz. Die Kette degradiert
 > graceful, aber degradiertes Tooling wird **gemeldet**, nie verschwiegen — bewusstes `off`
 > (`LHTASK_CODEGRAPH`/`LHTASK_FALLOW`) erscheint als neutrale Notiz, ⚠️ zählt in die Ampel.
 
@@ -529,9 +534,9 @@ flowchart LR
 | `LHTASK_PROXY_URL` | Anthropic-kompatibler übersetzender Proxy für `openrouter:`-Modelle (z. B. LiteLLM `/v1/messages`); leer/unerreichbar → Claude-Fallback, **laut** protokolliert (❌ `### Model fallbacks`) |
 | `LHTASK_PROXY_TOKEN` | Auth-Token für den Proxy — **nicht** ins committete Conf: in `~/.config/lhtask/env` setzen (nach `lhtask.conf` gesourct, gewinnt) |
 | `LHTASK_REVIEW_AUTONOMOUS` | `1` = In-Loop-Reviewer in der Implement-Schleife (`0` = Gate-only) |
-| `LHTASK_NOTIFY` | `1` = Desktop-Notification bei Review-Ende |
+| `LHTASK_NOTIFY` | `1` = Desktop-Notification bei Review-Ende (kein Notifier installiert → ⚠️ im Tooling-Report) |
 | `LHTASK_STACK` | Stack für den Gate: `auto` (Marker-Dateien) \| `nextjs` \| `react` \| `node` \| `python` \| `php` \| `go` \| `rust` |
-| `LHTASK_GATE_LINT` / `_TYPECHECK` / `_TEST` / `_BUILD` | Gate-Kommandos je Check; leer = Stack-Default (Test: Fallback `LHTASK_TEST_CMD`); fehlendes Tool = skip |
+| `LHTASK_GATE_LINT` / `_TYPECHECK` / `_TEST` / `_BUILD` | Gate-Kommandos je Check; leer = Stack-Default (Test: Fallback `LHTASK_TEST_CMD`); fehlendes Tool = skip, im Report als ⚠️ mit Install-Hinweis |
 | `LHTASK_FALLOW` | Fallow-Static-Analysis als fünfter Gate-Check: `auto` (läuft, falls installiert — PATH oder `./node_modules/.bin`) \| `off` |
 | `LHTASK_FALLOW_CMD` | Volles fallow-Kommando-Override (`{base}` → Basis-Ref); leer = `fallow audit --base {base} --gate new-only --format json --quiet` |
 | `LHTASK_MAX_ITER` | Max. Iterationen der implement↔gate↔review-Schleife (default 3) |
