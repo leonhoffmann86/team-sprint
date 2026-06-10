@@ -15,7 +15,7 @@ jobs:
       - name: Validate plugin manifest
         run: |
           python3 -c "import json; json.load(open('.claude-plugin/plugin.json'))" || exit 1
-          python3 -c "import json; json.load(open('marketplace.json'))" || exit 1
+          python3 -c "import json; json.load(open('.claude-plugin/marketplace.json'))" || exit 1
 
       - name: ShellCheck (scripts + hooks)
         run: |
@@ -43,7 +43,7 @@ jobs:
 
       - name: Validate JSON files
         run: |
-          for f in .claude-plugin/plugin.json marketplace.json; do
+          for f in .claude-plugin/plugin.json .claude-plugin/marketplace.json; do
             echo "Linting $f..."
             python3 -m json.tool "$f" > /dev/null || exit 1
           done

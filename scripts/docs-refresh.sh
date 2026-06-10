@@ -31,7 +31,7 @@ Everything else is a source you must account for — today that includes (but is
 - skills/lh-task/SKILL.md, skills/bootstrap/SKILL.md
 - templates/githooks/post-commit, templates/githooks/README.md, templates/scripts/lhtask-*.sh,
   templates/lhtask.conf, templates/AGENTS.md, templates/{TODO,DONE,AGENT_LOG}.md
-- .claude-plugin/plugin.json, marketplace.json
+- .claude-plugin/plugin.json, .claude-plugin/marketplace.json
 - the doc-automation itself: .githooks/pre-push, scripts/docs-refresh.sh, Makefile
 If a source file exists that the docs don't yet mention, that is exactly the kind of gap to fix.
 

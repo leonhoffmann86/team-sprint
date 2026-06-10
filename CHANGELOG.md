@@ -5,6 +5,22 @@ All notable changes to LHTask will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] — 2026-06-10
+
+### Fixed
+- Moved `marketplace.json` to `.claude-plugin/marketplace.json` — the CLI resolves
+  exactly that path, so `claude plugin marketplace add leonhoffmann86/lhtask-plugin`
+  (GitHub install) now works; CI manifest checks updated accordingly
+
+### Added
+- `docs/DISTRIBUTION.md` — binding distribution & separation model: GitHub is the only
+  install channel (also for maintainers; `--plugin-dir` is test-only), data flows
+  one-way plugin → consumer, the vendored chain is self-contained, updates are
+  pull-based (`/lhtask:update` inside the consumer repo), the registry is opt-in and
+  must not list internal repos when strict separation is required
+
+[0.3.1]: https://github.com/leonhoffmann86/lhtask-plugin/releases/tag/v0.3.1
+
 ## [0.3.0] — 2026-06-10
 
 ### Added
