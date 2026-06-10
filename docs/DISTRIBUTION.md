@@ -23,6 +23,9 @@ claude plugin update lhtask
 
 `--plugin-dir <dev-clone>` is reserved for testing the plugin itself (e.g.
 `tests/smoke-test.sh`); it must never be the standing way a working repo loads lhtask.
+The `bootstrap`/`update` skills enforce this: with `CLAUDE_PLUGIN_ROOT` unset they fall
+back to the installed marketplace-cache copy and otherwise stop with the install
+instruction — a development checkout is never accepted as a template source.
 The marketplace manifest lives at `.claude-plugin/marketplace.json` (the CLI resolves
 exactly that path — keep it there), the plugin manifest at `.claude-plugin/plugin.json`;
 versions in both plus `CHANGELOG.md` stay in sync per release.

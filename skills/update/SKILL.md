@@ -13,11 +13,20 @@ headless git-hook path depends on, plus the stage scripts and hooks.
 `TODO.md`, `DONE.md`, `AGENT_LOG.md`, `AGENTS.md`, `CLAUDE.md` and `.gitignore` alone.
 
 ## 0. Locate templates + the target repo(s)
+Templates come from the plugin **as installed** — never from a development checkout:
 ```bash
 TPL="${CLAUDE_PLUGIN_ROOT:-}/templates"
-[ -d "$TPL" ] || echo "CLAUDE_PLUGIN_ROOT not set — ask the user for the plugin path."
+# Fallback when CLAUDE_PLUGIN_ROOT is unset (e.g. skill executed manually): resolve the
+# INSTALLED plugin from the marketplace cache — most recently installed version wins.
+[ -d "$TPL" ] || TPL="$(ls -dt "$HOME"/.claude/plugins/cache/*/lhtask/*/templates 2>/dev/null | head -1)"
+[ -d "${TPL:-}" ] || { echo "lhtask is not installed. Run:
+  claude plugin marketplace add leonhoffmann86/lhtask-plugin
+  claude plugin install lhtask@lhtask-marketplace"; }
 REG="${XDG_CONFIG_HOME:-$HOME/.config}/lhtask/registry"   # one repo path per line
 ```
+If neither resolves, **stop** with that install instruction. Do NOT search the filesystem
+for a plugin source tree and do NOT accept a git checkout of the plugin repo as `$TPL` —
+only the installed (versioned) copy is a valid template source (see `docs/DISTRIBUTION.md`).
 - No argument → operate on the current repo only: `ROOT="$(git rev-parse --show-toplevel)"`.
 - `--all` → read `$REG` (if present) and operate on each listed path that is still a git repo
   with a `scripts/lhtask-lib.sh` (i.e. actually bootstrapped). Report missing/!bootstrapped

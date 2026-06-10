@@ -8,12 +8,21 @@ You are installing the **LHTask** plan→implement→review workflow into the us
 This is a one-time, **idempotent** scaffold. Never overwrite an existing file silently.
 
 ## 0. Locate the plugin templates
-The templates live at `${CLAUDE_PLUGIN_ROOT}/templates`. Set:
+The templates live at `${CLAUDE_PLUGIN_ROOT}/templates` — i.e. the plugin **as installed**,
+never a development checkout. Set:
 ```bash
 TPL="${CLAUDE_PLUGIN_ROOT:-}/templates"
-[ -d "$TPL" ] || echo "CLAUDE_PLUGIN_ROOT not set — ask the user for the plugin path."
+# Fallback when CLAUDE_PLUGIN_ROOT is unset (e.g. skill executed manually): resolve the
+# INSTALLED plugin from the marketplace cache — most recently installed version wins.
+[ -d "$TPL" ] || TPL="$(ls -dt "$HOME"/.claude/plugins/cache/*/lhtask/*/templates 2>/dev/null | head -1)"
+[ -d "${TPL:-}" ] || { echo "lhtask is not installed. Run:
+  claude plugin marketplace add leonhoffmann86/lhtask-plugin
+  claude plugin install lhtask@lhtask-marketplace"; }
 ROOT="$(git rev-parse --show-toplevel)"   # must be a git repo; if not, offer: git init
 ```
+If neither resolves, **stop** with that install instruction. Do NOT search the filesystem
+for a plugin source tree and do NOT accept a git checkout of the plugin repo as `$TPL` —
+only the installed (versioned) copy is a valid template source (see `docs/DISTRIBUTION.md`).
 If `$ROOT` isn't a git repo, stop and offer to run `git init` first (the chain needs git hooks).
 
 ## 1. Detect the project type → propose config defaults

@@ -5,6 +5,18 @@ All notable changes to LHTask will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] — 2026-06-10
+
+### Changed
+- Hardened template resolution in the `bootstrap` and `update` skills: when
+  `CLAUDE_PLUGIN_ROOT` is unset (skill executed manually), they now resolve the
+  **installed** plugin from the marketplace cache (most recently installed version);
+  if no install exists they stop with the GitHub install instruction. Searching the
+  filesystem for a plugin source tree or using a development checkout as the template
+  source is explicitly forbidden (enforces `docs/DISTRIBUTION.md`)
+
+[0.3.2]: https://github.com/leonhoffmann86/lhtask-plugin/releases/tag/v0.3.2
+
 ## [0.3.1] — 2026-06-10
 
 ### Fixed
