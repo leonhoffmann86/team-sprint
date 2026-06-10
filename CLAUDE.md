@@ -13,7 +13,9 @@ build, lint, or test toolchain. The "code" is:
   skill via the Skill tool and pass `$ARGUMENTS` through,
 - a set of **bash templates** (`templates/`) that `bootstrap` copies into a *target* repo,
 - the **subagent team** (`agents/*.md`) — six role definitions (planner, navigator, implementer,
-  reviewer-correctness, reviewer-conventions, reviewer-visual) used by the implement loop.
+  reviewer-correctness, reviewer-conventions, reviewer-visual) used by the implement loop,
+- plugin metadata (`.claude-plugin/plugin.json`, `marketplace.json`, `CHANGELOG.md` — keep the
+  version in sync across all three when releasing).
 
 Critical mental model: the scripts in `templates/scripts/` and `templates/githooks/` **do not run
 here**. They are parameterized files that get copied (`cp -n`) into another repo by the `bootstrap`
@@ -23,9 +25,9 @@ future bootstrapped repo gets; it has no effect on this repo's own git activity.
 **Agents are duplicated on purpose:** `agents/` is the plugin-canonical copy (auto-updates with the
 plugin, used by interactive sessions); `templates/.claude/agents/` is the vendored copy that
 `bootstrap` installs into the target repo, because the headless hook chain reads the role bodies via
-`--append-system-prompt` from `$ROOT/.claude/agents/`. **Keep the two directories identical** — edit
-both, or run `/lhtask:update` in target repos after changing them. The same applies to `.mcp.json`
-(codegraph MCP server config) and `templates/.mcp.json`.
+`--append-system-prompt` from `$ROOT/.claude/agents/`. **Keep the two directories identical** —
+edit `agents/` and run `make sync-agents` to copy them over, then `/lhtask:update` in target repos.
+The same applies to `.mcp.json` (codegraph MCP server config) and `templates/.mcp.json`.
 
 ## The plan → implement → review chain (the heart of the plugin)
 
@@ -126,13 +128,17 @@ vendored, but not yet wired into the implement loop.
 
 ## Project commands & doc automation
 
-This repo has no build/test toolchain, but a small `Makefile` wraps the setup + doc steps:
+This repo has no build toolchain, but a small `Makefile` wraps the setup + doc + sync steps:
 
 - `make setup` — one-time per clone: `chmod +x` the hooks/scripts and `git config core.hooksPath
   .githooks` (this is local config, not committed, so every clone must run it).
 - `make docs` — run `scripts/docs-refresh.sh`: headless `claude` regenerates the three
   source-of-truth docs (`CLAUDE.md`, `ARCHITECTURE.md`, `README.md`) from the current sources.
 - `make check` — `bash -n` (plus `shellcheck` if installed) over every shell script.
+- `make sync-agents` — copy `agents/*.md` → `templates/.claude/agents/` (the two must stay identical).
+
+CI (`.github/workflows/ci.yml`) runs on push/PR to `main`: it validates the JSON manifests
+(`plugin.json`, `marketplace.json`) and runs `shellcheck` + `bash -n` over the template scripts.
 
 `.githooks/pre-push` keeps those docs in sync: when a push changes a **source** file it regenerates
 the docs, commits them, and pushes that commit along (one `git push`, docs included). It is
@@ -147,8 +153,10 @@ silently forgotten. If you add a real exclusion, change it in *both* places.
 
 ## Testing changes to the chain
 
-There is no test suite. To validate a change to the chain, bootstrap it into a throwaway git repo and
-exercise it manually:
+`tests/smoke-test.sh` is the end-to-end smoke test: it bootstraps the plugin into a throwaway repo
+(`claude -p --plugin-dir … "/lhtask:bootstrap"`), commits a `TODO.md` task, runs the chain with
+`LHTASK_FOREGROUND=1`, and asserts `TODO.run.log` was produced. It needs the `claude` CLI, so it is
+not run in CI. To debug a change manually, bootstrap into a throwaway git repo and use:
 
 ```bash
 LHTASK_FOREGROUND=1 .githooks/post-commit   # run the triggered stage synchronously

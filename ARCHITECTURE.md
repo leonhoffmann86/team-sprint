@@ -63,8 +63,9 @@ flowchart LR
 > `/lhtask:update` nach (nur Logik; `lhtask.conf` + Lifecycle-Dateien bleiben unangetastet).
 >
 > `agents/` (Plugin-kanonisch, interaktiv) und `templates/.claude/agents/` (vendored, von der
-> headless Kette per `--append-system-prompt` gelesen) müssen **identisch** bleiben — beide ändern.
-> Gleiches gilt für `.mcp.json` / `templates/.mcp.json` (codegraph-MCP-Server).
+> headless Kette per `--append-system-prompt` gelesen) müssen **identisch** bleiben —
+> `agents/` ändern, dann `make sync-agents`. Gleiches gilt für `.mcp.json` /
+> `templates/.mcp.json` (codegraph-MCP-Server).
 >
 > `commands/*.md` sind dünne Slash-Command-Wrapper (je einer pro Skill): gleiche
 > `description`/`argument-hint`-Frontmatter, der Body ruft nur den Skill auf und reicht
@@ -499,4 +500,5 @@ tail -f TODO.run.log                        # konsolidierter Live-Trace (pro Tri
 LHTASK_FOREGROUND=1 .githooks/post-commit   # getriggerte Stage synchron ausführen
 cat .git/lhtask-implement.log               # roher Per-Stage-Log
 touch .git/autoplan.disabled                # Killswitch (entfernen = wieder an)
+bash tests/smoke-test.sh                    # End-to-End-Smoke-Test (Wegwerf-Repo, braucht claude-CLI)
 ```
