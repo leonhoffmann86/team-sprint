@@ -133,7 +133,7 @@ flowchart LR
     I --> J{"Risiko?"}
     J -- "hoch" --> K["🚧 Deferred<br/>(Mensch entscheidet)"]
     J -- "low/med" --> M["implementer: 1 Commit:<br/>Code + TODO→DONE + LOG"]
-    M --> L{"GATE grün?<br/>(lint/type/test/build)"}
+    M --> L{"GATE grün?<br/>(lint/type/test/build + fallow)"}
     L -- "❌ rot" --> M2["Loopback: nur die<br/>Findings fixen"]
     M2 --> M
     L -- "✅" --> RV{"Reviewer:<br/>blocker/major?"}
@@ -227,9 +227,9 @@ sequenceDiagram
     loop bis LHTASK_MAX_ITER (default 3)
         I->>C: Rolle IMPLEMENTER (acceptEdits + Deny-Rules)
         C->>W: 1 Commit: Code + TODO→DONE + AGENT_LOG<br/>(high-risk → 🚧 Deferred, doc-only Commit)
-        I->>G: GATE: lint / typecheck / test / build
+        I->>G: GATE: lint / typecheck / test / build<br/>+ fallow (falls installiert)
         alt Gate rot
-            G-->>I: gate.json (verdict fail) → Loopback mit Findings
+            G-->>I: gate.json + fallow.json (verdict fail) → Loopback mit Findings
         else Gate grün + LHTASK_REVIEW_AUTONOMOUS=1
             I->>C: Rolle REVIEWER-CORRECTNESS (read-only)
             I->>C: Rolle REVIEWER-CONVENTIONS (read-only)
@@ -252,10 +252,18 @@ sequenceDiagram
 > Die In-Loop-Reviewer ersetzen den früheren terminalen `lhtask-review.sh`-Aufruf am Ende der
 > Implement-Stage (der Hook kann Agent-Commits nicht reviewen, weil sie `AUTOPLAN_AGENT=1`
 > setzen). `lhtask-review.sh` läuft weiterhin für **menschliche** Commits in den Review-Dirs —
-> report-only. `LHTASK_REVIEW_AUTONOMOUS=0` schaltet die Reviewer-Phase ab (Gate-only-Schleife).
+> report-only, inklusive eines Fallow-Abschnitts (Report: `.git/lhtask-fallow.json`).
+> `LHTASK_REVIEW_AUTONOMOUS=0` schaltet die Reviewer-Phase ab (Gate-only-Schleife).
 > Nur `gate.json` ist maschinen-vertrauenswürdig (von der Shell geschrieben); Agent-JSON wird
 > jq-oder-grep und **fail-closed** gelesen (fehlend/kaputt = blocker → Loopback, nie stilles DONE).
 > `reviewer-visual` ist als Scaffold dabei, aber noch **nicht** in die Schleife verdrahtet.
+>
+> **Fallow** (<https://docs.fallow.tools>) ist der fünfte deterministische Gate-Check: `fallow audit`
+> (Dead Code / Duplikate / Komplexität), auf den Changeset des Item-Commits gescoped und
+> „new-only" gegated — nur vom Change **eingeführte** Findings machen den Gate rot. Der Roh-Report
+> landet als `.lhtask-state/fallow.json` neben `gate.json`; Loopback-Prompt und Reviewer lesen ihn
+> mit. Graceful: nicht installiert → skip, Laufzeit-/Config-Fehler (exit 2) → skip, nie per `npx`
+> nachgeladen (der Gate bleibt offline-deterministisch). Steuerung: `LHTASK_FALLOW` / `LHTASK_FALLOW_CMD`.
 
 ---
 
@@ -277,7 +285,7 @@ flowchart TB
         WT_IMPL["isolierter Checkout<br/>branch: autoplan/impl"]
         LN1["↳ .venv (symlink)"]
         LN2["↳ .codegraph/codegraph.db (symlink)"]
-        ST["↳ .lhtask-state/ — Rollen-Sidecars<br/>(plan/navigation/gate/review-*.json)<br/>via info/exclude nie committet"]
+        ST["↳ .lhtask-state/ — Rollen-Sidecars<br/>(plan/navigation/gate/fallow/review-*.json)<br/>via info/exclude nie committet"]
     end
 
     WT_MAIN -- "git worktree add -f -B autoplan/impl HEAD" --> WT_IMPL
@@ -487,6 +495,8 @@ flowchart LR
 | `LHTASK_NOTIFY` | `1` = Desktop-Notification bei Review-Ende |
 | `LHTASK_STACK` | Stack für den Gate: `auto` (Marker-Dateien) \| `nextjs` \| `react` \| `node` \| `python` \| `php` \| `go` \| `rust` |
 | `LHTASK_GATE_LINT` / `_TYPECHECK` / `_TEST` / `_BUILD` | Gate-Kommandos je Check; leer = Stack-Default (Test: Fallback `LHTASK_TEST_CMD`); fehlendes Tool = skip |
+| `LHTASK_FALLOW` | Fallow-Static-Analysis als fünfter Gate-Check: `auto` (läuft, falls installiert — PATH oder `./node_modules/.bin`) \| `off` |
+| `LHTASK_FALLOW_CMD` | Volles fallow-Kommando-Override (`{base}` → Basis-Ref); leer = `fallow audit --base {base} --gate new-only --format json --quiet` |
 | `LHTASK_MAX_ITER` | Max. Iterationen der implement↔gate↔review-Schleife (default 3) |
 | `LHTASK_PHASE_TIMEOUT` | Timeout (s) pro headless `claude -p`-Phase (default 600) |
 | `LHTASK_VISUAL_MAX_DIFF_RATIO` / `LHTASK_DEV_URL` | Stage 2 (visual reviewer — Scaffold, noch nicht verdrahtet) |

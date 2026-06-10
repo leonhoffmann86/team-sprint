@@ -1,7 +1,7 @@
 # LHTask — Autonomous TODO Workflow for Claude Code
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-0.2.0-blue)](https://github.com/leonhoffmann86/lhtask-plugin)
+[![Version](https://img.shields.io/badge/version-0.3.0-blue)](https://github.com/leonhoffmann86/lhtask-plugin)
 [![Built for Claude Code](https://img.shields.io/badge/Built_for-Claude_Code-orange)](https://claude.ai/code)
 
 **Turn a rough idea into a reviewed, tested implementation — automatically.**
@@ -11,7 +11,8 @@ structured task, then let a git-hook chain **plan → implement → review** it.
 The implementer runs as a subagent team (planner, navigator, implementer,
 deterministic gate, reviewers — in a bounded loop) inside an isolated worktree
 on a branch that is **never auto-merged**. A deterministic gate
-(lint/typecheck/test/build) and fail-closed reviewers catch problems before you
+(lint/typecheck/test/build, plus [fallow](https://docs.fallow.tools) static
+analysis when installed) and fail-closed reviewers catch problems before you
 ever see them. Language-agnostic and config-driven, so it drops into any repo.
 
 ```mermaid

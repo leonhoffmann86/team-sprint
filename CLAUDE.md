@@ -35,7 +35,9 @@ When bootstrapped into a repo, `templates/githooks/post-commit` routes each comm
 
 - commit changed `TODO.md` → **`lhtask-plan.sh`** (writes `TODO.autoplan.md`) → chains
   **`lhtask-implement.sh`** in the same detached run.
-- commit changed any `LHTASK_REVIEW_DIRS/` → **`lhtask-review.sh`** (writes `TODO.review.md`, report-only).
+- commit changed any `LHTASK_REVIEW_DIRS/` → **`lhtask-review.sh`** (writes `TODO.review.md`,
+  report-only; for single-commit targets it also runs fallow and appends a `### Fallow` section,
+  report at `.git/lhtask-fallow.json`).
 
 `lhtask-implement.sh` is a **shell-driven subagent-team orchestrator** in an **isolated
 `git worktree`** on `LHTASK_IMPL_BRANCH` (default `autoplan/impl`). It runs **planner → navigator**
@@ -44,7 +46,10 @@ once, then a bounded loop (up to `LHTASK_MAX_ITER`, default 3):
 1. **implementer** — smallest change, **one commit per item** (code + `TODO.md`→`DONE.md` +
    `AGENT_LOG.md`),
 2. **deterministic gate** (`lhtask-gate.sh`, pure shell, no LLM) — lint/typecheck/test/build per
-   `LHTASK_GATE_*`/`LHTASK_STACK` (stack auto-detected from marker files); red → loop back with the
+   `LHTASK_GATE_*`/`LHTASK_STACK` (stack auto-detected from marker files), plus a fifth **fallow**
+   check (`fallow audit`: dead code/duplication/complexity, scoped to the item commit's changeset,
+   gated "new-only" — only findings the change *introduces* fail; raw report saved as
+   `.lhtask-state/fallow.json` for the loopback prompt and the reviewers); red → loop back with the
    failures as the fix list,
 3. **reviewers** (correctness + conventions, read-only) — `blocker`/`major` findings → loop back.
 
@@ -78,7 +83,9 @@ When changing any stage script, preserve these load-bearing invariants:
   `LHTASK_FOREGROUND=1` to run synchronously (this is the debugging/testing lever).
 - **Graceful no-op:** every stage exits 0 if `claude` (or, for codegraph, `codegraph`) is absent;
   the gate records a check whose command is unconfigured or whose tool is off PATH as `skip`,
-  never a hard fail; missing `timeout`/`gtimeout` just means no per-phase timeout.
+  never a hard fail; missing `timeout`/`gtimeout` just means no per-phase timeout. Fallow follows
+  the same rule: not installed → skip, runtime/config error (exit 2) → skip, and it is **never
+  `npx`-downloaded** (only an already-installed binary runs — the gate stays offline-deterministic).
 - **Permission hardening:** `AUTOPLAN_AGENT=1` is set centrally in `run_phase` (never per
   call-site). Every role gets the hard deny rules from `lhtask_deny_settings` via `--settings`
   (`git push`/`git reset --hard`/`git rebase`/`rm -rf`/`Task`/`Agent` — deny is evaluated first
@@ -86,14 +93,16 @@ When changing any stage script, preserve these load-bearing invariants:
   the implementer commit-capable (`acceptEdits`). Don't widen these casually.
 - **Fail-closed review parsing:** `lhtask_review_max_severity` treats a missing, empty, or
   unparseable review sidecar as `blocker`. Keep that direction — a garbled report must loop back,
-  not pass.
+  not pass. (Exception by design: `lhtask_fallow_to_md` is fail-OPEN — a missing `fallow.json`
+  just means fallow didn't run; the gate already enforced the verdict where it matters.)
 
 ## Configuration is the single source of truth
 
 `templates/lhtask.conf` defines every tunable (review dirs, test command with `{path}` placeholder,
 constitution files, impl branch, venv to symlink, codegraph mode, model override, autonomous-review
 and notify toggles, plus the subagent/gate block: `LHTASK_STACK`, the four `LHTASK_GATE_*` commands,
-`LHTASK_MAX_ITER`, `LHTASK_PHASE_TIMEOUT`, and the stage-2 visual-reviewer keys
+the fallow keys `LHTASK_FALLOW` (`auto`/`off`) and `LHTASK_FALLOW_CMD` (full command override,
+`{base}` placeholder), `LHTASK_MAX_ITER`, `LHTASK_PHASE_TIMEOUT`, and the stage-2 visual-reviewer keys
 `LHTASK_VISUAL_MAX_DIFF_RATIO`/`LHTASK_DEV_URL`). Defaults are duplicated in two places that
 **must stay in sync** with the conf: `lhtask_load_config` in `lhtask-lib.sh`, and the inline
 defaults at the top of `post-commit` (the hook reads only `LHTASK_REVIEW_DIRS` and
