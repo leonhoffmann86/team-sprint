@@ -24,3 +24,7 @@ check: ## Syntax-check every shell script (+ shellcheck if installed)
 	@if command -v shellcheck >/dev/null 2>&1; then \
 	  shellcheck --severity=warning .githooks/* scripts/*.sh templates/githooks/post-commit templates/scripts/*.sh && echo "shellcheck: clean"; \
 	else echo "(shellcheck not installed — skipped)"; fi
+
+sync-agents: ## Sync agents/ → templates/.claude/agents/ (keep them identical)
+	cp agents/*.md templates/.claude/agents/
+	@echo "✓ agents/ synced to templates/.claude/agents/"

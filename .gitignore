@@ -5,6 +5,7 @@
 # local editor / machine-specific (never commit — leaks paths, accumulates session cruft)
 .vscode/
 .idea/
+.hermes/
 
 # Claude Code: tracked project settings stay out (they accumulate machine-specific
 # "always allow" grants); per-session grants belong in the gitignored .local file.
@@ -16,3 +17,4 @@ TODO.autoplan.md
 TODO.review.md
 TODO.run.log
 .lhtask-state/
+.brief/

@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate plugin manifest
+        run: |
+          python3 -c "import json; json.load(open('.claude-plugin/plugin.json'))" || exit 1
+          python3 -c "import json; json.load(open('marketplace.json'))" || exit 1
+
+      - name: ShellCheck (scripts + hooks)
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+          shellcheck templates/githooks/post-commit || true
+          shellcheck templates/scripts/lhtask-lib.sh || true
+          shellcheck templates/scripts/lhtask-plan.sh || true
+          shellcheck templates/scripts/lhtask-implement.sh || true
+          shellcheck templates/scripts/lhtask-gate.sh || true
+          shellcheck templates/scripts/lhtask-review.sh || true
+          shellcheck scripts/docs-refresh.sh || true
+
+      - name: Syntax-check all shell scripts
+        run: |
+          bash -n templates/githooks/post-commit
+          for f in templates/scripts/*.sh scripts/*.sh; do
+            echo "Checking $f..."
+            bash -n "$f" || exit 1
+          done
+
+  json-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate JSON files
+        run: |
+          for f in .claude-plugin/plugin.json marketplace.json; do
+            echo "Linting $f..."
+            python3 -m json.tool "$f" > /dev/null || exit 1
+          done

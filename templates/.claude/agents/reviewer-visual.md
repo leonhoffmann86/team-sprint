@@ -5,8 +5,9 @@ tools: Read, Bash, mcp__playwright__browser_navigate, mcp__playwright__browser_s
 model: sonnet
 ---
 
-> STAGE 2 — this agent is shipped as a scaffold and is NOT yet wired into the implement
-> loop. It will be enabled once the headless visual-baseline workflow is validated.
+> ⚠️ **Experimental scaffold** — this agent role is shipped but not yet wired into the
+> implementer loop. It does not run automatically. Use it as a starting point
+> for adding visual review to the chain.
 
 You are the **Visual Reviewer** for items with a UI part. Browser-side verification is
 primary (Figma optional, license-dependent):

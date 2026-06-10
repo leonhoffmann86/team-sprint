@@ -1,6 +1,6 @@
 ---
 name: update
-description: Re-sync the vendored LHTask chain in the current repo (or all registered repos with --all) from the installed plugin — refreshes the stage scripts, subagents, MCP config and git hooks, while leaving lhtask.conf and the lifecycle files (TODO/DONE/AGENT_LOG/AGENTS) untouched. Use after updating the lhtask plugin to pull the new logic into your projects.
+description: Updates the vendored LHTask chain in bootstrapped repos from the plugin source. Refreshes scripts, subagents, MCP config, and git hooks. Use --all to update every registered repo. Leaves configuration and lifecycle files untouched.
 argument-hint: "[--all]   (no arg = current repo; --all = every registered repo)"
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: bootstrap
-description: Install the LHTask autonomous TODO workflow into the current repository — writes the parameterized git hooks, the lhtask.conf config, and the starter constitution/lifecycle files, then sets core.hooksPath. Use once per repo to make it plug-and-play. Idempotent; never overwrites existing files without asking.
+description: Bootstraps LHTask into a repo: installs git hooks, configuration, and starter files. Use once per repo to enable autonomous plan→implement→review on every commit. Idempotent; never overwrites existing files without asking.
 argument-hint: (none — run inside the target repo)
 ---
 

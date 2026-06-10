@@ -1,11 +1,40 @@
-# LHTask
+# LHTask — Autonomous TODO Workflow for Claude Code
 
-Autonomous TODO workflow as a portable Claude Code plugin: refine a rough idea into one
-structured `TODO.md` item, then let a git-hook chain **plan → implement → review** it. The
-implementer is a **subagent team** (planner → navigator → implementer → deterministic gate →
-reviewers, in a bounded loop) working in an isolated worktree on a branch that is **never
-auto-merged**; high-risk work is deferred to a human. Language-agnostic and config-driven,
-so it drops into any repo.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Version](https://img.shields.io/badge/version-0.2.0-blue)](https://github.com/leonhoffmann/lhtask-plugin)
+[![Built for Claude Code](https://img.shields.io/badge/Built_for-Claude_Code-orange)](https://claude.ai/code)
+
+**Turn a rough idea into a reviewed, tested implementation — automatically.**
+
+LHTask gives Claude Code a three-stage autonomous workflow: refine an idea into a
+structured task, then let a git-hook chain **plan → implement → review** it.
+The implementer runs as a subagent team (planner, navigator, implementer,
+deterministic gate, reviewers — in a bounded loop) inside an isolated worktree
+on a branch that is **never auto-merged**. A deterministic gate
+(lint/typecheck/test/build) and fail-closed reviewers catch problems before you
+ever see them. Language-agnostic and config-driven, so it drops into any repo.
+
+```mermaid
+graph LR
+    A["💡 Idea"] --> B["/lhtask:lh-task"]
+    B --> C["TODO.md"]
+    C --> D["git commit"]
+    D --> E["🔧 PLAN"]
+    E --> F["🧭 NAVIGATE"]
+    F --> G["⚙️ IMPLEMENT"]
+    G --> H{"✅ GATE"}
+    H --"red"--> G
+    H --"green"--> I["👀 REVIEW"]
+    I --"blocker"--> G
+    I --"pass"--> J["📋 TODO.review.md"]
+```
+
+## How it works (30 seconds)
+
+1. **Capture** — `/lhtask:lh-task "your idea"` refines it into one structured `TODO.md` item.
+2. **Commit** — `git add TODO.md && git commit -m "task: …"` triggers the chain.
+3. **Done** — The chain plans, implements, gates, and reviews. You get a `TODO.review.md`
+   with findings. Nothing is auto-merged — you stay in control.
 
 ## Install & use
 
@@ -20,7 +49,27 @@ git add TODO.md && git commit -m "task: ..."    # starts the chain
 
 Kill switch: `touch .git/autoplan.disabled` · live trace: `tail -f TODO.run.log`.
 
-## Mehr
+## Security
+
+LHTask installs a git `post-commit` hook that launches headless `claude` processes.
+This is powerful — and taken seriously:
+
+| Concern | How LHTask addresses it |
+|---------|------------------------|
+| **Unintended recursion** | Agent commits are flagged with `AUTOPLAN_AGENT=1`; the hook skips them — no infinite loops |
+| **Destructive operations** | `git push`, `git reset --hard`, `git rebase`, `rm -rf`, `Task`/`Agent` delegation — hard-denied per role via `--settings` |
+| **Escaping the sandbox** | Planner, navigator, and reviewers are **read-only** (`dontAsk` + allowlist); only the implementer is commit-capable |
+| **Runaway agents** | Bounded loop: max 3 implement→gate→review iterations per run |
+| **Stuck locks** | `mkdir`-based locks with automatic stale-reaping prevent deadlocks from killed runs |
+| **Emergency stop** | `touch .git/autoplan.disabled` — instant kill switch for the entire chain |
+| **Human oversight** | The impl branch is **never auto-merged**; high-risk items are deferred to `## 🚧 Deferred` and never touched autonomously |
+
+> **Before installing any git-hook-based plugin**, audit its scripts and understand
+> what it does on your machine. LHTask is MIT-licensed and the full source is right here.
+> Start with [`templates/githooks/README.md`](templates/githooks/README.md) for a
+> stage-by-stage walkthrough of the installed chain.
+
+## Documentation
 
 The deep documentation is the source of truth and stays current automatically (see *Doc
 automation* below) — start here:
@@ -50,3 +99,14 @@ make                  # list all commands
 LHTASK_DOCS_SKIP=1 git push           # skip the refresh for one push
 touch .git/docs-refresh.disabled      # disable it entirely (rm to re-enable)
 ```
+
+## Built by
+
+**Leon Hoffmann** — freelance web developer & AI-integration consultant (Berlin).
+I build tools that bridge human intent and autonomous execution.
+
+- 🌐 [leonhoffmann.net](https://leonhoffmann.net)
+- 💼 [GitHub](https://github.com/leonhoffmann)
+
+*LHTask is MIT-licensed. If it saves you time, I'd love to hear about it —
+and if you need custom AI workflow integration, I'm available for consulting.*
