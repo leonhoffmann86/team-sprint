@@ -19,6 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Plan stage skips cleanly when `TODO.md` has no active `- [ ]` item left (e.g. the
   commit of an applied/merged chain result) — no more idle headless run
 
+### Fixed
+- **Implementer worktree moved out of `.git/`** to a sibling directory next to the
+  repo (`../.lhtask-worktree-<repo>`): the agent permission layer auto-denies every
+  write under a `.git/` path, so the implementer could never edit a file in its
+  worktree — every autonomous run ended `impl-error` after zero edits. Discovered
+  and verified during a consumer-repo run (re-trigger converged after the move)
+
 [0.8.0]: https://github.com/leonhoffmann86/lhtask-plugin/releases/tag/v0.8.0
 
 ## [0.7.0] — 2026-06-10

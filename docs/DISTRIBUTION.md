@@ -48,6 +48,11 @@ Consumer repos may be **internal and security-relevant**; this plugin repo is
   into consumer repos. The registry (`~/.config/lhtask/registry`, consumed by
   `/lhtask:update --all`) is a machine-local, opt-in convenience — keep internal repos
   out of it when strict separation is required.
+- **Fixes flow the same one way.** Sessions running in a consumer repo must NOT write
+  into the plugin dev repo — not even for a correct fix to the vendored chain. Fix the
+  vendored copy locally if the chain is blocked, and *report* the finding so the change
+  is reviewed and released plugin-side; an unreviewed cross-repo edit can silently ride
+  into a release on the next broad commit.
 
 ## External tools follow the same rule
 
