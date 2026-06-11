@@ -1,6 +1,6 @@
 {
   "name": "lhtask",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Autonomous TODO workflow: refine an idea into one structured TODO item, then a git-hook chain plans → implements (subagent team + deterministic gate, isolated worktree, never auto-merged) → reviews it. Language-agnostic, config-driven, bootstrapped into any repo.",
   "author": {
     "name": "Leon Hoffmann",

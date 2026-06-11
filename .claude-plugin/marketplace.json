@@ -7,7 +7,7 @@
   "plugins": [
     {
       "name": "lhtask",
-      "version": "0.8.0",
+      "version": "0.8.1",
       "source": "./",
       "description": "Autonomous TODO workflow (plan → implement → review) as a portable, config-driven plugin with a bootstrap installer.",
       "license": "MIT",

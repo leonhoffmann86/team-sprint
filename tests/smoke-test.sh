@@ -174,13 +174,16 @@ EOF
   ) || exit 1
 
   # --- plan-stage idle guard: no active checkbox item → grep gate fails ---
-  NOACT="$(printf '# TODO\n\n## Backlog\n(alles erledigt)\n')"
-  if printf '%s\n' "$NOACT" | grep -qE '^[[:space:]]*[-*][[:space:]]+\[ \]'; then
+  IDLE_RE='^[[:space:]]*([-*][[:space:]]+)?\[ \]'
+  NOACT="$(printf '# TODO\n\n## Backlog\n(alles erledigt)\n- plain bullet without checkbox\n')"
+  if printf '%s\n' "$NOACT" | grep -qE "$IDLE_RE"; then
     echo "  UNIT FAIL: idle guard matched without active items"; exit 1
   fi
-  printf -- '- [ ] do something\n' | grep -qE '^[[:space:]]*[-*][[:space:]]+\[ \]' \
-    || { echo "  UNIT FAIL: idle guard misses an active item"; exit 1; }
-  echo "  ok:  plan idle-guard pattern"
+  printf -- '- [ ] do something\n' | grep -qE "$IDLE_RE" \
+    || { echo "  UNIT FAIL: idle guard misses a dashed item"; exit 1; }
+  printf -- '[ ] bare checkbox item\n' | grep -qE "$IDLE_RE" \
+    || { echo "  UNIT FAIL: idle guard misses a bare-checkbox item"; exit 1; }
+  echo "  ok:  plan idle-guard pattern (dashed + bare checkbox)"
   echo "  model-resolution unit tests passed"
 ) || { echo "SMOKE FAIL: model resolution unit tests"; exit 1; }
 

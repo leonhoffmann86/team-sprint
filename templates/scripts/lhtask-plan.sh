@@ -38,9 +38,11 @@ LOG="$ROOT/.git/lhtask-plan.log"
 RUNLOG="$ROOT/TODO.run.log"
 ACTIVE="$(lhtask_strip_skipped "$ROOT/TODO.md")"
 
-# No ACTIVE `- [ ]` item left (e.g. the commit was an applied/merged chain result
+# No ACTIVE checkbox item left (e.g. the commit was an applied/merged chain result
 # whose TODO.md change only REMOVED items) → nothing to plan; skip the claude run.
-if ! printf '%s\n' "$ACTIVE" | grep -qE '^[[:space:]]*[-*][[:space:]]+\[ \]'; then
+# Tolerant on purpose: `- [ ]`, `* [ ]` and bare `[ ]` all count — a false
+# "nothing to do" silently blocks real work, which is worse than one idle run.
+if ! printf '%s\n' "$ACTIVE" | grep -qE '^[[:space:]]*([-*][[:space:]]+)?\[ \]'; then
   echo "lhtask-plan: no active TODO items — nothing to plan, skipping." >&2
   exit 0
 fi
