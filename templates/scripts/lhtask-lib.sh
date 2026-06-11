@@ -19,6 +19,7 @@ lhtask_load_config() {
   LHTASK_TEST_CMD="echo 'no test command configured' && false"
   LHTASK_CONSTITUTION_FILES="AGENTS.md"
   LHTASK_IMPL_BRANCH="autoplan/impl"
+  LHTASK_DELIVERY="branch"       # branch (leave on impl branch) | apply (stage into working tree)
   LHTASK_VENV=""
   LHTASK_CODEGRAPH="auto"
   LHTASK_MODEL=""
@@ -536,6 +537,44 @@ lhtask_surface_review() {
   fi
 }
 
+# Deliver CONVERGED impl-branch work into the user's working tree as STAGED,
+# uncommitted changes (LHTASK_DELIVERY=apply): `git merge --squash` — IDE-native
+# review, the USER makes the commit (never auto-committed; the no-auto-merge
+# invariant holds). Applies ONLY when provably conflict-free:
+#   1. the branch sits strictly on top of the current HEAD (it is created from HEAD
+#      each run; HEAD moved during the run → fallback), and
+#   2. none of the branch-changed paths overlap local uncommitted changes.
+# Returns 0 = applied; 1 = fallback to branch mode, with the REASON on stdout (the
+# caller surfaces it — degradation is visible, never silent). Shell-only → unit-testable.
+lhtask_apply_impl() {  # $1 = repo root, $2 = impl branch
+  local root="$1" br="$2" base changed dirty overlap prestaged
+  base="$(git -C "$root" merge-base HEAD "$br" 2>/dev/null || true)"
+  if [ -z "$base" ] || [ "$base" != "$(git -C "$root" rev-parse HEAD)" ]; then
+    printf 'HEAD moved during the run — result left on %s' "$br"; return 1
+  fi
+  changed="$(git -C "$root" diff --name-only "HEAD..$br" 2>/dev/null)"
+  if [ -z "$changed" ]; then
+    printf 'branch introduces no changes'; return 1
+  fi
+  # Paths from porcelain: strip the 2-char status + space; unquote is not needed for
+  # the overlap test (both sides come from git and quote identically).
+  dirty="$(git -C "$root" status --porcelain 2>/dev/null | cut -c4- | sed 's/.* -> //')"
+  overlap="$(printf '%s\n' "$changed" | grep -Fx -f <(printf '%s\n' "$dirty") 2>/dev/null || true)"
+  [ -z "$dirty" ] && overlap=""
+  if [ -n "$overlap" ]; then
+    printf 'local uncommitted changes overlap the result (%s) — left on %s' \
+      "$(printf '%s' "$overlap" | tr '\n' ' ' | sed 's/ $//')" "$br"; return 1
+  fi
+  prestaged="$(git -C "$root" diff --cached --name-only 2>/dev/null)"
+  if ! git -C "$root" merge --squash "$br" >/dev/null 2>&1; then
+    # Emergency cleanup of a partial squash — but NEVER unstage the user's own
+    # pre-existing staged work; only reset when the index was empty before.
+    [ -z "$prestaged" ] && git -C "$root" reset --quiet 2>/dev/null
+    printf 'git merge --squash failed unexpectedly — result left on %s' "$br"; return 1
+  fi
+  return 0
+}
+
 # Build TODO.review.md from the structured artifacts (gate + reviews), then hand off
 # to lhtask_surface_review for the ## 🔎 / AGENT_LOG / notify surface (verbatim).
 lhtask_findings_surface() {  # $1 = gate.json ; $2.. = review-*.json files
@@ -556,6 +595,12 @@ lhtask_findings_surface() {  # $1 = gate.json ; $2.. = review-*.json files
     fi
     printf '\n### Reviews\n'
     for f in "$@"; do lhtask_json_findings_to_md "$f"; done
+    if [ -n "${LHTASK_DELIVERY_MD:-}" ]; then
+      # Set by lhtask-implement.sh when LHTASK_DELIVERY=apply: how the converged
+      # work reached the user (staged into the working tree, or why it stayed on
+      # the branch). Counts into the traffic-light summary.
+      printf '\n### Delivery\n%s\n' "$LHTASK_DELIVERY_MD"
+    fi
     printf '\n### Tooling\n'
     lhtask_tooling_to_md "$root"
   } > "$root/TODO.review.md"

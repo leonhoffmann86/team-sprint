@@ -5,6 +5,22 @@ All notable changes to LHTask will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] — 2026-06-11
+
+### Added
+- `LHTASK_DELIVERY="apply"` (default stays `"branch"`): FULLY converged autonomous
+  work (gate green + reviews ok) is delivered as **staged, uncommitted changes** in
+  the user's working tree (`git merge --squash`) — IDE-native review in the changes
+  view, the USER makes the commit (the never-auto-commit/merge invariant holds).
+  Applies only when provably conflict-free (impl branch sits exactly on HEAD, no
+  overlap with local uncommitted changes); otherwise it falls back to branch mode
+  with the reason in the new `### Delivery` section of `TODO.review.md`
+  (✅/⚠️ counts into the traffic light). The branch is kept as backup either way
+- Plan stage skips cleanly when `TODO.md` has no active `- [ ]` item left (e.g. the
+  commit of an applied/merged chain result) — no more idle headless run
+
+[0.8.0]: https://github.com/leonhoffmann86/lhtask-plugin/releases/tag/v0.8.0
+
 ## [0.7.0] — 2026-06-10
 
 ### Added

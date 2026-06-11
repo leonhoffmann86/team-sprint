@@ -38,6 +38,13 @@ LOG="$ROOT/.git/lhtask-plan.log"
 RUNLOG="$ROOT/TODO.run.log"
 ACTIVE="$(lhtask_strip_skipped "$ROOT/TODO.md")"
 
+# No ACTIVE `- [ ]` item left (e.g. the commit was an applied/merged chain result
+# whose TODO.md change only REMOVED items) → nothing to plan; skip the claude run.
+if ! printf '%s\n' "$ACTIVE" | grep -qE '^[[:space:]]*[-*][[:space:]]+\[ \]'; then
+  echo "lhtask-plan: no active TODO items — nothing to plan, skipping." >&2
+  exit 0
+fi
+
 read -r -d '' PROMPT <<EOF || true
 $(lhtask_preamble)
 

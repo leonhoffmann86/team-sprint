@@ -135,6 +135,52 @@ EOF
   printf '%s\n' "$GATE_MD" | grep -q "LHTASK_FALLOW_CMD" \
     || { echo "  UNIT FAIL: fallow skip hint wrong"; printf '%s\n' "$GATE_MD"; exit 1; }
   echo "  ok:  gate missing-tool skips rendered as ⚠️ with config hint"
+
+  # --- LHTASK_DELIVERY=apply: lhtask_apply_impl (squash-stage into the working tree) ---
+  APPLY_REPO="$TMPDIR/apply-unit"
+  git init -q "$APPLY_REPO" && (
+    cd "$APPLY_REPO"
+    git config user.email t@t && git config user.name t
+    echo base > file.txt && echo keep > other.txt
+    git add -A && git commit -qm base
+    # impl branch strictly on top of HEAD, one change
+    git branch impl && git checkout -q impl && echo changed > file.txt && git commit -aqm impl && git checkout -q -
+    # 1) happy path: clean tree → applied (staged, no commit, branch kept)
+    lhtask_apply_impl "$PWD" impl || { echo "  UNIT FAIL: apply happy path returned fallback"; exit 1; }
+    git diff --cached --name-only | grep -qx "file.txt" || { echo "  UNIT FAIL: change not staged"; exit 1; }
+    [ "$(git rev-parse HEAD)" = "$(git rev-parse main 2>/dev/null || git rev-parse master)" ] || true
+    [ "$(git log --oneline | wc -l | tr -d ' ')" = "1" ] || { echo "  UNIT FAIL: apply must not commit"; exit 1; }
+    git show-ref --verify --quiet refs/heads/impl || { echo "  UNIT FAIL: branch must be kept"; exit 1; }
+    echo "  ok:  apply happy path → staged, no commit, branch kept"
+    git reset -q && git checkout -q -- file.txt
+    # 2) dirty overlap → fallback naming the file, nothing staged
+    echo local-edit >> file.txt
+    if OUT="$(lhtask_apply_impl "$PWD" impl)"; then echo "  UNIT FAIL: overlap must fall back"; exit 1; fi
+    printf '%s' "$OUT" | grep -q "file.txt" || { echo "  UNIT FAIL: overlap reason misses file"; exit 1; }
+    [ -z "$(git diff --cached --name-only)" ] || { echo "  UNIT FAIL: overlap fallback staged something"; exit 1; }
+    git checkout -q -- file.txt
+    echo "  ok:  dirty overlap → fallback with reason, nothing staged"
+    # 3) non-overlapping dirty file → still applies
+    echo local >> other_untouched.txt
+    lhtask_apply_impl "$PWD" impl || { echo "  UNIT FAIL: non-overlap dirty must still apply"; exit 1; }
+    git diff --cached --name-only | grep -qx "file.txt" || { echo "  UNIT FAIL: non-overlap apply not staged"; exit 1; }
+    git reset -q && git checkout -q -- file.txt && rm -f other_untouched.txt
+    echo "  ok:  unrelated dirty file does not block apply"
+    # 4) HEAD moved during the run → fallback
+    echo more > extra.txt && git add extra.txt && git commit -qm "user commit"
+    if OUT="$(lhtask_apply_impl "$PWD" impl)"; then echo "  UNIT FAIL: HEAD-moved must fall back"; exit 1; fi
+    printf '%s' "$OUT" | grep -qi "HEAD moved" || { echo "  UNIT FAIL: HEAD-moved reason wrong: $OUT"; exit 1; }
+    echo "  ok:  HEAD moved → fallback"
+  ) || exit 1
+
+  # --- plan-stage idle guard: no active checkbox item → grep gate fails ---
+  NOACT="$(printf '# TODO\n\n## Backlog\n(alles erledigt)\n')"
+  if printf '%s\n' "$NOACT" | grep -qE '^[[:space:]]*[-*][[:space:]]+\[ \]'; then
+    echo "  UNIT FAIL: idle guard matched without active items"; exit 1
+  fi
+  printf -- '- [ ] do something\n' | grep -qE '^[[:space:]]*[-*][[:space:]]+\[ \]' \
+    || { echo "  UNIT FAIL: idle guard misses an active item"; exit 1; }
+  echo "  ok:  plan idle-guard pattern"
   echo "  model-resolution unit tests passed"
 ) || { echo "SMOKE FAIL: model resolution unit tests"; exit 1; }
 

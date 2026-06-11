@@ -36,7 +36,10 @@ command -v claude >/dev/null 2>&1 || { echo "lhtask-implement: claude CLI not fo
 LOCKDIR="$ROOT/.git/lhtask-implement.lock"
 LOG="$ROOT/.git/lhtask-implement.log"
 RUNLOG="$ROOT/TODO.run.log"
-WT="$ROOT/.git/lhtask-worktree"
+# Sibling dir OUTSIDE the repo (and outside .git/): the agent permission layer
+# auto-denies every write under a .git/ path, which silently broke all
+# implementer runs (impl-error after 0 edits).
+WT="$(dirname "$ROOT")/.lhtask-worktree-$(basename "$ROOT")"
 BR="${LHTASK_IMPL_BRANCH:-autoplan/impl}"
 
 lhtask_reap_stale_lock "$LOCKDIR" 30
@@ -240,6 +243,23 @@ cd "$ROOT"
 IMPL_SHA="$(git rev-parse --short "$BR" 2>/dev/null || echo '')"
 SHA="${IMPL_SHA:-$BR}"   # label used by the review surface
 
+# Delivery: with LHTASK_DELIVERY=apply, FULLY converged work is staged into the
+# user's working tree (git merge --squash — IDE-native review, the USER commits).
+# Anything else stays on the branch; the fallback reason is surfaced, never silent.
+# Computed BEFORE the findings surface so the ✅/⚠️ line counts into the traffic light
+# (rendered as "### Delivery" by lhtask_findings_surface via LHTASK_DELIVERY_MD).
+LHTASK_DELIVERY_MD=""
+if [ "${LHTASK_DELIVERY:-branch}" = "apply" ] && [ "$STATUS" = "done" ]; then
+  if APPLY_REASON="$(lhtask_apply_impl "$ROOT" "$BR")"; then
+    LHTASK_DELIVERY_MD="✅ delivery: applied as STAGED changes in your working tree — review in the IDE, then commit yourself (branch ${BR} kept as backup until the next run)"
+  else
+    LHTASK_DELIVERY_MD="⚠️ delivery: ${APPLY_REASON} — review via \`git log ${BR}\`, then merge or discard"
+  fi
+elif [ "${LHTASK_DELIVERY:-branch}" = "apply" ]; then
+  LHTASK_DELIVERY_MD="⚠️ delivery: not converged (status: ${STATUS}) — nothing applied; work stays on ${BR}"
+fi
+export LHTASK_DELIVERY_MD
+
 # Publish TODO.review.md (✅/⚠️/❌) from the structured artifacts, then run the existing
 # surface (## 🔎 pointer into TODO.md + AGENT_LOG + notify) — reused verbatim.
 if [ -f "$STATE_DIR/gate.json" ]; then
@@ -259,8 +279,13 @@ fi
 # hard -B reset of the branch each run — up to LHTASK_MAX_ITER unmerged commits now ride on
 # it, so merge or discard the branch promptly (never auto-merged on purpose).
 git worktree remove --force "$WT" 2>/dev/null || true
+
 lhtask_runlog_stage "$RUNLOG" "RESULT — commits on ${BR}"
 git log --oneline "$BR" --not HEAD 2>/dev/null | sed 's/^/  /' >> "$RUNLOG" || true
-echo "✓ Implementation finished on branch ${BR} (status: ${STATUS}). Review: git log ${BR} — then merge or discard."
+[ -n "$LHTASK_DELIVERY_MD" ] && lhtask_runlog_note "$RUNLOG" "$LHTASK_DELIVERY_MD"
+case "$LHTASK_DELIVERY_MD" in
+  "✅ delivery:"*) echo "✓ Implementation finished (status: ${STATUS}) — result is STAGED in your working tree: review the changes in your IDE, then commit." ;;
+  *)              echo "✓ Implementation finished on branch ${BR} (status: ${STATUS}). Review: git log ${BR} — then merge or discard." ;;
+esac
 
 exit 0
