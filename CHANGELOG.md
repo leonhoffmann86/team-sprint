@@ -5,6 +5,17 @@ All notable changes to LHTask will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.2] — 2026-06-11
+
+### Fixed
+- Traffic-light counting in `lhtask_surface_review` only counts **line-leading**
+  ✅/⚠️/❌ markers: a review report mentioning "no ❌ findings" in prose was counted
+  as a finding, raising a false `## 🔎` pointer whose `AGENT_LOG.md` append then
+  dirtied the working tree and needlessly tripped the next apply-delivery overlap
+  fallback (observed live in a consumer run)
+
+[0.8.2]: https://github.com/leonhoffmann86/lhtask-plugin/releases/tag/v0.8.2
+
 ## [0.8.1] — 2026-06-11
 
 ### Fixed

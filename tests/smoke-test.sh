@@ -184,6 +184,25 @@ EOF
   printf -- '[ ] bare checkbox item\n' | grep -qE "$IDLE_RE" \
     || { echo "  UNIT FAIL: idle guard misses a bare-checkbox item"; exit 1; }
   echo "  ok:  plan idle-guard pattern (dashed + bare checkbox)"
+
+  # --- traffic-light counting: only LINE-LEADING markers are findings ---
+  SURF_REPO="$TMPDIR/surface-unit"
+  git init -q "$SURF_REPO" && (
+    cd "$SURF_REPO"
+    git config user.email t@t && git config user.name t
+    printf '# TODO\n\n- [ ] item\n' > TODO.md
+    # Prose mention of ❌ ("no ❌ findings") must NOT raise the 🔎 pointer …
+    printf '> Review of x\n✅ aspect ok\nVerdict: no ❌ findings, one cosmetic note.\n' > TODO.review.md
+    ROOT="$PWD" SHA=test lhtask_surface_review >/dev/null
+    grep -q '🔎 Review-Findings' TODO.md \
+      && { echo "  UNIT FAIL: prose ❌ raised a false 🔎 pointer"; exit 1; }
+    # … while a line-leading ❌ MUST raise it.
+    printf '> Review of x\n❌ broken: real finding\n' > TODO.review.md
+    ROOT="$PWD" SHA=test lhtask_surface_review >/dev/null
+    grep -q '🔎 Review-Findings' TODO.md \
+      || { echo "  UNIT FAIL: line-leading ❌ did not raise the 🔎 pointer"; exit 1; }
+    echo "  ok:  traffic light counts line-leading markers only"
+  ) || exit 1
   echo "  model-resolution unit tests passed"
 ) || { echo "SMOKE FAIL: model resolution unit tests"; exit 1; }
 

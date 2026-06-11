@@ -507,9 +507,13 @@ lhtask_surface_review() {
   local report="$root/TODO.review.md"
   [ -f "$report" ] || return 0
   local ok warn bad
-  ok="$(grep -c '✅' "$report" 2>/dev/null || true)";  ok="${ok:-0}"
-  warn="$(grep -c '⚠️' "$report" 2>/dev/null || true)"; warn="${warn:-0}"
-  bad="$(grep -c '❌' "$report" 2>/dev/null || true)";  bad="${bad:-0}"
+  # Count only LINE-LEADING markers: findings are one-per-line by convention, while
+  # free-text review prose may mention a marker mid-sentence ("no ❌ findings") —
+  # which must NOT count as a finding (it caused false 🔎 pointers, whose AGENT_LOG
+  # append then dirtied the tree and tripped the next apply-delivery overlap check).
+  ok="$(grep -c -E '^[[:space:]]*✅' "$report" 2>/dev/null || true)";  ok="${ok:-0}"
+  warn="$(grep -c -E '^[[:space:]]*⚠️' "$report" 2>/dev/null || true)"; warn="${warn:-0}"
+  bad="$(grep -c -E '^[[:space:]]*❌' "$report" 2>/dev/null || true)";  bad="${bad:-0}"
   local line="LHTask review ${sha}: ✅ ${ok}  ⚠️ ${warn}  ❌ ${bad} — see TODO.review.md"
   echo "$line"
 
