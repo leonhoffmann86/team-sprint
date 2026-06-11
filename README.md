@@ -1,7 +1,7 @@
 # LHTask — Autonomous TODO Workflow for Claude Code
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-0.8.2-blue)](https://github.com/leonhoffmann86/lhtask-plugin)
+[![Version](https://img.shields.io/badge/version-0.9.0-blue)](https://github.com/leonhoffmann86/lhtask-plugin)
 [![Built for Claude Code](https://img.shields.io/badge/Built_for-Claude_Code-orange)](https://claude.ai/code)
 
 **Turn a rough idea into a reviewed, tested implementation — automatically.**
@@ -54,7 +54,8 @@ git add TODO.md && git commit -m "task: ..."    # starts the chain
 Pick up a new release later: `claude plugin marketplace update lhtask-marketplace &&
 claude plugin update lhtask`, then `/lhtask:update` inside each bootstrapped repo.
 
-Kill switch: `touch .git/autoplan.disabled` · live trace: `tail -f TODO.run.log`.
+Kill switch: `touch .git/autoplan.disabled` · live trace: `tail -f TODO.run.log`
+(streams every agent tool call in real time).
 
 ## Security
 

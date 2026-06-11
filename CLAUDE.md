@@ -78,6 +78,15 @@ in `.lhtask-state/` inside the worktree (excluded from commits via the worktree'
 **Only `gate.json` is machine-trusted** (shell-authored); agent JSON is parsed jq-or-grep,
 **fail-closed** (missing/garbled review JSON = blocker → loopback, never a silent DONE).
 
+Every headless phase (plan, all loop roles, standalone review) streams its tool calls live into
+`TODO.run.log` via `--output-format stream-json` + the jq renderer `lhtask_stream_trace`
+(`⚙ implementer → Edit: app/x.py` … `✔ implementer done — 7 turns`), so `tail -f TODO.run.log`
+is a real-time status view instead of staying silent for a whole phase. `LHTASK_STREAM=auto`
+(default) is jq-gated — `off` or no jq = exactly the pre-0.9.0 silent-until-done behavior — and
+non-JSON lines (real stderr errors) pass through verbatim. `lhtask_stream_setup` computes the
+flags once per stage; the role label reaches the pipeline filter via the shell variable
+`LHTASK_TRACE_ROLE`, not the env prefix of the claude process.
+
 On convergence or exhaustion, `lhtask_findings_surface` publishes `TODO.review.md` (sections:
 Gate · Fallow · Model fallbacks · Reviews · Delivery (only when `LHTASK_DELIVERY=apply`) ·
 Tooling) and the
@@ -163,7 +172,8 @@ native API. `LHTASK_PROXY_TOKEN` and other machine-local secrets belong in `~/.c
 it wins. The conf further holds the autonomous-review
 and notify toggles, plus the subagent/gate block: `LHTASK_STACK`, the four `LHTASK_GATE_*` commands,
 the fallow keys `LHTASK_FALLOW` (`auto`/`off`) and `LHTASK_FALLOW_CMD` (full command override,
-`{base}` placeholder), `LHTASK_MAX_ITER`, `LHTASK_PHASE_TIMEOUT`, and the stage-2 visual-reviewer keys
+`{base}` placeholder), `LHTASK_MAX_ITER`, `LHTASK_PHASE_TIMEOUT`, `LHTASK_STREAM` (live
+tool-call trace in `TODO.run.log`: `auto` jq-gated / `off`), and the stage-2 visual-reviewer keys
 `LHTASK_VISUAL_MAX_DIFF_RATIO`/`LHTASK_DEV_URL`). Defaults are duplicated in two places that
 **must stay in sync** with the conf: `lhtask_load_config` in `lhtask-lib.sh`, and the inline
 defaults at the top of `post-commit` (the hook reads only `LHTASK_REVIEW_DIRS` and
@@ -241,8 +251,10 @@ reports every supporting tool; `off` → neutral note; conditional curl/notifier
 gate skips rendered as ⚠️ with config hint), the delivery helper (`lhtask_apply_impl`: happy path
 stages without committing and keeps the branch; dirty overlap and HEAD-moved fall back with a
 reason and stage nothing; unrelated dirty files don't block), the plan idle-guard pattern
-(dashed and bare checkbox items both count as active) and the traffic-light counting
-(`lhtask_surface_review`: only line-leading ❌ raises the 🔎 pointer, prose mentions don't),
+(dashed and bare checkbox items both count as active), the traffic-light counting
+(`lhtask_surface_review`: only line-leading ❌ raises the 🔎 pointer, prose mentions don't)
+and the live stream trace (`lhtask_stream_setup`/`lhtask_stream_trace`: NDJSON events → terse
+activity lines, non-JSON noise kept verbatim, `off`/no-jq = pure passthrough),
 then bootstraps the plugin into a throwaway repo
 (`claude -p --plugin-dir … "/lhtask:bootstrap"`), commits a `TODO.md` task, runs the chain with
 `LHTASK_FOREGROUND=1`, and asserts `TODO.run.log` was produced. The E2E part needs the `claude`
@@ -250,7 +262,7 @@ CLI, so it is not run in CI. To debug a change manually, bootstrap into a throwa
 
 ```bash
 LHTASK_FOREGROUND=1 .githooks/post-commit   # run the triggered stage synchronously
-tail -f TODO.run.log                        # consolidated human-visible trace (reset each trigger)
+tail -f TODO.run.log                        # live activity trace — every agent tool call (reset each trigger)
 cat .git/lhtask-implement.log               # raw per-stage log
 touch .git/autoplan.disabled                # kill switch
 ```

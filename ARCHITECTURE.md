@@ -258,7 +258,7 @@ sequenceDiagram
             end
         end
     end
-    Note right of C: jede Rolle läuft mit<br/>AUTOPLAN_AGENT=1 +<br/>Timeout (LHTASK_PHASE_TIMEOUT)<br/>+ eigenem Modell (LHTASK_MODEL_&lt;ROLLE&gt;<br/>→ LHTASK_MODEL → CLI-Default;<br/>openrouter:-Prefix → Proxy-Env pro Prozess)
+    Note right of C: jede Rolle läuft mit<br/>AUTOPLAN_AGENT=1 +<br/>Timeout (LHTASK_PHASE_TIMEOUT)<br/>+ eigenem Modell (LHTASK_MODEL_&lt;ROLLE&gt;<br/>→ LHTASK_MODEL → CLI-Default;<br/>openrouter:-Prefix → Proxy-Env pro Prozess)<br/>+ Live-Trace der Tool-Calls →<br/>TODO.run.log (LHTASK_STREAM, jq-gated)
     I->>I: LHTASK_DELIVERY=apply + konvergiert?<br/>lhtask_apply_impl: git merge --squash →<br/>Ergebnis GESTAGED im Arbeitsbaum (nie committet)<br/>sonst Fallback auf Branch (Grund wird surfaced)
     I->>I: lhtask_findings_surface: TODO.review.md (Ampel:<br/>Gate · Fallow · Model fallbacks · Reviews ·<br/>Delivery (bei apply) · Tooling)<br/>+ ❌→🔎 in TODO.md + AGENT_LOG
     I->>I: worktree entfernen (Branch bleibt!)<br/>nicht konvergiert → Eskalations-Note
@@ -390,7 +390,7 @@ flowchart LR
     subgraph SIDECARS["gitignored Sidecars (Agent-Output)"]
         AUTOPLAN["TODO.autoplan.md<br/>Plan-Vorschläge"]
         REVIEW["TODO.review.md<br/>Review-Report (Ampel)"]
-        RUNLOG["TODO.run.log<br/>Live-Trace (tail -f)"]
+        RUNLOG["TODO.run.log<br/>Live-Trace jedes Tool-Calls (tail -f)"]
         STATE[".lhtask-state/<br/>Rollen-Sidecars (JSON)"]
     end
 
@@ -475,7 +475,7 @@ flowchart TB
     LOCK -- "ok" --> MODE{"LHTASK_FOREGROUND=1?"}
     MODE -- "nein (default)" --> BG["( do_run ) &amp; — detached<br/>Commit kehrt sofort zurück"]
     MODE -- "ja (debug)" --> FG["( do_run ) — synchron"]
-    BG --> WORK["claude läuft (~Minuten)<br/>tee → TODO.run.log + .git/lhtask-*.log"]
+    BG --> WORK["claude läuft (~Minuten)<br/>stream-json → lhtask_stream_trace<br/>→ TODO.run.log + .git/lhtask-*.log"]
     FG --> WORK
     WORK --> RELEASE["trap EXIT: rmdir lock"]
 
@@ -491,6 +491,13 @@ flowchart TB
   installiert → Graceful No-op.
 - **Detached by default** → der Commit kehrt sofort zurück, ein Platzhalter landet sofort
   im Sidecar. `LHTASK_FOREGROUND=1` ist der Debug-/Test-Hebel (synchron).
+- **Live-Trace** (`LHTASK_STREAM`, default `auto`): jede headless Phase (Plan, alle
+  Schleifen-Rollen, Standalone-Review) streamt ihre Tool-Calls per
+  `--output-format stream-json` durch den jq-Renderer `lhtask_stream_trace` in `TODO.run.log`
+  (`⚙ implementer → Edit: app/x.py` … `✔ implementer done — 7 turns`) — `tail -f TODO.run.log`
+  ist damit eine Echtzeit-Statusansicht statt minutenlanger Stille („hängt er oder arbeitet
+  er?"). Ohne jq oder mit `off` verhält sich alles exakt wie vor 0.9.0 (still bis Phasenende);
+  Nicht-JSON-Zeilen (echte stderr-Fehler) bleiben wörtlich sichtbar.
 
 ---
 
@@ -571,6 +578,7 @@ flowchart LR
 | `LHTASK_FALLOW_CMD` | Volles fallow-Kommando-Override (`{base}` → Basis-Ref); leer = `fallow audit --base {base} --gate new-only --format json --quiet` |
 | `LHTASK_MAX_ITER` | Max. Iterationen der implement↔gate↔review-Schleife (default 3) |
 | `LHTASK_PHASE_TIMEOUT` | Timeout (s) pro headless `claude -p`-Phase (default 600) |
+| `LHTASK_STREAM` | Live-Trace der Agent-Tool-Calls in `TODO.run.log`: `auto` (default; braucht jq — ohne jq wie `off`) \| `off` (Phase still bis zum Ende, Verhalten vor 0.9.0) |
 | `LHTASK_VISUAL_MAX_DIFF_RATIO` / `LHTASK_DEV_URL` | Stage 2 (visual reviewer — Scaffold, noch nicht verdrahtet) |
 
 ---
@@ -578,9 +586,9 @@ flowchart LR
 ### Debugging-Spickzettel
 
 ```bash
-tail -f TODO.run.log                        # konsolidierter Live-Trace (pro Trigger resettet)
+tail -f TODO.run.log                        # Live-Trace jedes Agent-Tool-Calls (pro Trigger resettet)
 LHTASK_FOREGROUND=1 .githooks/post-commit   # getriggerte Stage synchron ausführen
 cat .git/lhtask-implement.log               # roher Per-Stage-Log
 touch .git/autoplan.disabled                # Killswitch (entfernen = wieder an)
-bash tests/smoke-test.sh                    # Smoke-Test: Unit-Teil (Modell-Auflösung + Tooling-Surface + apply-Delivery + Plan-Idle-Guard + Ampel-Zählung, ohne claude) + E2E (Wegwerf-Repo, braucht claude-CLI)
+bash tests/smoke-test.sh                    # Smoke-Test: Unit-Teil (Modell-Auflösung + Tooling-Surface + apply-Delivery + Plan-Idle-Guard + Ampel-Zählung + Live-Stream-Trace, ohne claude) + E2E (Wegwerf-Repo, braucht claude-CLI)
 ```
