@@ -147,7 +147,7 @@ flowchart LR
     M2 --> M
     L -- "✅" --> RV{"Reviewer:<br/>blocker/major?"}
     RV -- "ja" --> M2
-    RV -- "nein → DONE" --> O["TODO.review.md (Ampel)<br/>+ Branch bleibt stehen"]
+    RV -- "nein → DONE" --> O["TODO.review.md (Ampel)<br/>+ Branch bleibt stehen<br/>(LHTASK_DELIVERY=apply: Ergebnis<br/>gestaged im Arbeitsbaum, selbst committen)"]
     M2 -. "LHTASK_MAX_ITER erschöpft" .-> ESC["🔎 Review-Findings<br/>+ AGENT_LOG (eskaliert)"]
     O --> P{"Mensch:<br/>mergen?"}
     P -- "ja" --> Q["merge autoplan/impl"]
@@ -193,6 +193,10 @@ flowchart TB
 
 > Das Review-Regex wird dynamisch aus der Config gebaut:
 > `review_re="^(${LHTASK_REVIEW_DIRS// /|})/"` → aus `"src tests"` wird `^(src|tests)/`.
+>
+> Die Plan-Stage steigt zusätzlich sauber aus (ohne claude-Lauf), wenn nach
+> `lhtask_strip_skipped` **kein aktives `- [ ]`-Item** übrig ist — z. B. beim Commit eines
+> applied/gemergten Ketten-Ergebnisses, dessen `TODO.md`-Änderung nur Items entfernt hat.
 
 ---
 
@@ -251,11 +255,12 @@ sequenceDiagram
         end
     end
     Note right of C: jede Rolle läuft mit<br/>AUTOPLAN_AGENT=1 +<br/>Timeout (LHTASK_PHASE_TIMEOUT)<br/>+ eigenem Modell (LHTASK_MODEL_&lt;ROLLE&gt;<br/>→ LHTASK_MODEL → CLI-Default;<br/>openrouter:-Prefix → Proxy-Env pro Prozess)
-    I->>I: lhtask_findings_surface: TODO.review.md (Ampel:<br/>Gate · Fallow · Model fallbacks · Reviews · Tooling)<br/>+ ❌→🔎 in TODO.md + AGENT_LOG
+    I->>I: LHTASK_DELIVERY=apply + konvergiert?<br/>lhtask_apply_impl: git merge --squash →<br/>Ergebnis GESTAGED im Arbeitsbaum (nie committet)<br/>sonst Fallback auf Branch (Grund wird surfaced)
+    I->>I: lhtask_findings_surface: TODO.review.md (Ampel:<br/>Gate · Fallow · Model fallbacks · Reviews ·<br/>Delivery (bei apply) · Tooling)<br/>+ ❌→🔎 in TODO.md + AGENT_LOG
     I->>I: worktree entfernen (Branch bleibt!)<br/>nicht konvergiert → Eskalations-Note
     deactivate I
     I-->>U: "✅ x ⚠️ y ❌ z — siehe TODO.review.md"
-    U->>U: git log autoplan/impl → mergen oder verwerfen
+    U->>U: git log autoplan/impl → mergen oder verwerfen<br/>(apply: gestagte Änderungen im IDE reviewen → selbst committen)
 ```
 
 > Die In-Loop-Reviewer ersetzen den früheren terminalen `lhtask-review.sh`-Aufruf am Ende der
@@ -285,6 +290,16 @@ sequenceDiagram
 > (`lhtask_model_fallback_note`) und als ❌ unter `### Model fallbacks` in `TODO.review.md`
 > sichtbar (→ 🔎-Pointer + AGENT_LOG) — nie still.
 >
+> **Delivery** (`LHTASK_DELIVERY`, default `branch`): mit `apply` wird VOLL konvergierte Arbeit
+> (Gate grün + Reviews ok) per `git merge --squash` als **gestagte, uncommittete Änderungen** in
+> den Arbeitsbaum gelegt (`lhtask_apply_impl` in `lhtask-lib.sh`) — IDE-natives Review in der
+> Changes-View, **der Mensch committet** (die Nie-auto-mergen-Invariante hält). Angewendet wird
+> nur beweisbar konfliktfrei: der Impl-Branch sitzt exakt auf dem aktuellen HEAD **und** keine
+> lokal uncommitteten Änderungen überlappen das Ergebnis; sonst Fallback auf den Branch-Modus
+> mit Grund unter `### Delivery` (⚠️ zählt in die Ampel — nie still). Vorher selbst gestagte
+> Arbeit wird beim Cleanup nie weggeresettet; der Branch bleibt in beiden Fällen als Backup
+> stehen (hard-reset beim nächsten Lauf).
+>
 > **Tooling-Sichtbarkeit:** jede `TODO.review.md` (In-Loop-Surface **und** Standalone-Review) endet
 > mit einem `### Tooling`-Abschnitt (`lhtask_tooling_to_md`): codegraph (Binary **und** Repo-Index),
 > fallow, jq, timeout als ✅/⚠️ mit Install-Hinweis und konkretem Impact — dazu konditional `curl`
@@ -311,7 +326,7 @@ flowchart TB
         VENV[".venv"]
     end
 
-    subgraph WORKTREE[".git/lhtask-worktree — wegwerfbar"]
+    subgraph WORKTREE["../.lhtask-worktree-&lt;repo&gt; — Sibling-Verzeichnis, wegwerfbar"]
         direction TB
         WT_IMPL["isolierter Checkout<br/>branch: autoplan/impl"]
         LN1["↳ .venv (symlink)"]
@@ -333,6 +348,10 @@ flowchart TB
     style HUMAN fill:#eef2ff,stroke:#6366f1
 ```
 
+> Der worktree liegt als **Sibling-Verzeichnis neben dem Repo** (`../.lhtask-worktree-<repo>`),
+> bewusst **nicht** unter `.git/`: die Agent-Permission-Schicht verweigert jeden Write unter
+> einem `.git/`-Pfad automatisch — das brach Implementer-Läufe still (impl-error nach 0 Edits).
+>
 > **Vor** dem Anlegen wird hart aufgeräumt (`worktree remove --force` → `rm -rf` →
 > `worktree prune`), damit eine verwaiste Registrierung eines abgebrochenen Laufs den
 > neuen `worktree add` nicht blockiert.
@@ -340,7 +359,9 @@ flowchart TB
 > **Merge-Disziplin:** `-B` setzt den Branch bei jedem Lauf hart auf HEAD zurück, und die
 > Schleife kann bis zu `LHTASK_MAX_ITER` ungemergte Commits hinterlassen — den Branch zeitnah
 > reviewen und **mergen oder verwerfen**; ein liegengebliebener Branch wird beim nächsten Lauf
-> überschrieben.
+> überschrieben. Mit `LHTASK_DELIVERY=apply` entfällt das manuelle Mergen im Konvergenz-Fall:
+> das Ergebnis liegt bereits **gestaged** im Arbeitsbaum (selbst committen), der Branch bleibt
+> nur als Backup stehen.
 
 ---
 
@@ -527,6 +548,7 @@ flowchart LR
 | `LHTASK_TEST_CMD` | Legacy-Testkommando; Fallback für `LHTASK_GATE_TEST`; `{path}` → Ziel |
 | `LHTASK_CONSTITUTION_FILES` | Dateien, die jede Stage zuerst liest (default `AGENTS.md`) |
 | `LHTASK_IMPL_BRANCH` | Branch der Implement-Stage (default `autoplan/impl`) |
+| `LHTASK_DELIVERY` | `branch` (default: Ergebnis bleibt auf dem Impl-Branch) \| `apply` (VOLL konvergierte Arbeit wird per `git merge --squash` **gestaged** in den Arbeitsbaum gelegt — der Mensch committet; nicht beweisbar konfliktfrei → Fallback auf `branch` mit Grund unter `### Delivery`, Branch bleibt als Backup) |
 | `LHTASK_VENV` | venv, das in den worktree gesymlinkt wird (Python); leer für Node/Go |
 | `LHTASK_CODEGRAPH` | `auto` \| `on` \| `off` |
 | `LHTASK_MODEL` | Globaler Modell-Override für headless-Läufe (leer = CLI-Default) |
@@ -552,5 +574,5 @@ tail -f TODO.run.log                        # konsolidierter Live-Trace (pro Tri
 LHTASK_FOREGROUND=1 .githooks/post-commit   # getriggerte Stage synchron ausführen
 cat .git/lhtask-implement.log               # roher Per-Stage-Log
 touch .git/autoplan.disabled                # Killswitch (entfernen = wieder an)
-bash tests/smoke-test.sh                    # Smoke-Test: Unit-Teil (Modell-Auflösung + Tooling-Surface, ohne claude) + E2E (Wegwerf-Repo, braucht claude-CLI)
+bash tests/smoke-test.sh                    # Smoke-Test: Unit-Teil (Modell-Auflösung + Tooling-Surface + apply-Delivery + Plan-Idle-Guard, ohne claude) + E2E (Wegwerf-Repo, braucht claude-CLI)
 ```

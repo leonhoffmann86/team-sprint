@@ -1,7 +1,7 @@
 # LHTask — Autonomous TODO Workflow for Claude Code
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-0.7.0-blue)](https://github.com/leonhoffmann86/lhtask-plugin)
+[![Version](https://img.shields.io/badge/version-0.8.0-blue)](https://github.com/leonhoffmann86/lhtask-plugin)
 [![Built for Claude Code](https://img.shields.io/badge/Built_for-Claude_Code-orange)](https://claude.ai/code)
 
 **Turn a rough idea into a reviewed, tested implementation — automatically.**
@@ -10,7 +10,8 @@ LHTask gives Claude Code a three-stage autonomous workflow: refine an idea into 
 structured task, then let a git-hook chain **plan → implement → review** it.
 The implementer runs as a subagent team (planner, navigator, implementer,
 deterministic gate, reviewers — in a bounded loop) inside an isolated worktree
-on a branch that is **never auto-merged**. A deterministic gate
+on a branch that is **never auto-merged** — or, opt-in (`LHTASK_DELIVERY=apply`),
+converged work lands as **staged changes** that *you* commit. A deterministic gate
 (lint/typecheck/test/build, plus [fallow](https://docs.fallow.tools) static
 analysis when installed) and fail-closed reviewers catch problems before you
 ever see them. Language-agnostic and config-driven, so it drops into any repo.
@@ -68,7 +69,7 @@ This is powerful — and taken seriously:
 | **Runaway agents** | Bounded loop: max 3 implement→gate→review iterations per run |
 | **Stuck locks** | `mkdir`-based locks with automatic stale-reaping prevent deadlocks from killed runs |
 | **Emergency stop** | `touch .git/autoplan.disabled` — instant kill switch for the entire chain |
-| **Human oversight** | The impl branch is **never auto-merged**; high-risk items are deferred to `## 🚧 Deferred` and never touched autonomously |
+| **Human oversight** | The impl branch is **never auto-merged**; opt-in `apply` delivery only *stages* converged work — the commit is always yours; high-risk items are deferred to `## 🚧 Deferred` and never touched autonomously |
 | **Silent degradation** | Cross-vendor model fallbacks and every missing tool the chain touches (codegraph, fallow, jq, timeout, gate tools like eslint/pytest, curl & notifier when relevant) are reported in every `TODO.review.md` (`### Model fallbacks` / `### Tooling`) — graceful, never silent |
 
 > **Before installing any git-hook-based plugin**, audit its scripts and understand

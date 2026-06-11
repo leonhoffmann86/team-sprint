@@ -43,13 +43,18 @@ The same applies to `.mcp.json` (codegraph MCP server config) and `templates/.mc
 When bootstrapped into a repo, `templates/githooks/post-commit` routes each commit:
 
 - commit changed `TODO.md` → **`lhtask-plan.sh`** (writes `TODO.autoplan.md`) → chains
-  **`lhtask-implement.sh`** in the same detached run.
+  **`lhtask-implement.sh`** in the same detached run. The plan stage exits 0 *without* a claude
+  run when no active `- [ ]` item remains after `lhtask_strip_skipped` (e.g. the commit of an
+  applied/merged chain result that only removed items).
 - commit changed any `LHTASK_REVIEW_DIRS/` → **`lhtask-review.sh`** (writes `TODO.review.md`,
   report-only; for single-commit targets it also runs fallow and appends a `### Fallow` section,
   report at `.git/lhtask-fallow.json`; every report ends with a `### Tooling` section).
 
 `lhtask-implement.sh` is a **shell-driven subagent-team orchestrator** in an **isolated
-`git worktree`** on `LHTASK_IMPL_BRANCH` (default `autoplan/impl`). It runs **planner → navigator**
+`git worktree`** on `LHTASK_IMPL_BRANCH` (default `autoplan/impl`). The worktree is a sibling
+directory *outside* the repo (`../.lhtask-worktree-<repo>`) — never under `.git/`, because the
+agent permission layer auto-denies every write under a `.git/` path (this silently broke
+implementer runs). It runs **planner → navigator**
 once, then a bounded loop (up to `LHTASK_MAX_ITER`, default 3):
 
 1. **implementer** — smallest change, **one commit per item** (code + `TODO.md`→`DONE.md` +
@@ -70,7 +75,8 @@ in `.lhtask-state/` inside the worktree (excluded from commits via the worktree'
 **fail-closed** (missing/garbled review JSON = blocker → loopback, never a silent DONE).
 
 On convergence or exhaustion, `lhtask_findings_surface` publishes `TODO.review.md` (sections:
-Gate · Fallow · Model fallbacks · Reviews · Tooling) and the
+Gate · Fallow · Model fallbacks · Reviews · Delivery (only when `LHTASK_DELIVERY=apply`) ·
+Tooling) and the
 `## 🔎` pointer — the in-loop reviewers replace the old terminal `lhtask-review.sh` call (the hook
 can't review agent commits because they set `AUTOPLAN_AGENT=1`; `LHTASK_REVIEW_AUTONOMOUS=0` leaves
 a gate-only loop). The impl branch is **never auto-merged** and **hard-reset (`-B`) each run** — it
@@ -117,6 +123,14 @@ When changing any stage script, preserve these load-bearing invariants:
   unparseable review sidecar as `blocker`. Keep that direction — a garbled report must loop back,
   not pass. (Exception by design: `lhtask_fallow_to_md` is fail-OPEN — a missing `fallow.json`
   just means fallow didn't run; the gate already enforced the verdict where it matters.)
+- **Delivery never auto-commits:** with `LHTASK_DELIVERY=apply` (default stays `branch`), FULLY
+  converged work (gate green + reviews ok) is staged into the user's working tree via
+  `git merge --squash` (`lhtask_apply_impl` in `lhtask-lib.sh`) — IDE-native review, the *user*
+  makes the commit. It applies only when provably conflict-free (the impl branch sits exactly on
+  the current HEAD, and no branch-changed path overlaps local uncommitted changes) and never
+  unstages pre-existing user-staged work on cleanup; anything else falls back to branch mode with
+  the reason surfaced under `### Delivery` (⚠️ counts into the traffic light, never silent). The
+  branch is kept as backup either way (hard-reset on the next run).
 - **Graceful but LOUD model fallback:** a configured cross-vendor model that does not run falls
   back to the Claude chain AND is recorded via `lhtask_model_fallback_note` — surfaced as ❌ under
   `### Model fallbacks` in `TODO.review.md` (→ 🔎 pointer + `AGENT_LOG`). Causes: proxy
@@ -127,7 +141,8 @@ When changing any stage script, preserve these load-bearing invariants:
 ## Configuration is the single source of truth
 
 `templates/lhtask.conf` defines every tunable (review dirs, test command with `{path}` placeholder,
-constitution files, impl branch, venv to symlink, codegraph mode, the model block — global
+constitution files, impl branch, delivery mode (`LHTASK_DELIVERY` — `branch` default, `apply` =
+squash-stage converged work into the working tree), venv to symlink, codegraph mode, the model block — global
 `LHTASK_MODEL` plus the per-role overrides `LHTASK_MODEL_{PLAN,PLANNER,NAVIGATOR,IMPLEMENTER,
 REVIEWER_CORRECTNESS,REVIEWER_CONVENTIONS,REVIEW}`, resolved per phase by `lhtask_model_flags [role]`
 (role-specific → `LHTASK_MODEL` → CLI default; role names map uppercase with `-`→`_`, e.g.
@@ -216,7 +231,10 @@ covering the `lhtask_model_flags` resolution chain (role beats global, fallback,
 its cross-vendor branch (prefix parsing, env injection, no-proxy/unreachable fallback + recording,
 forced-Claude retry, `lhtask_model_is_xvendor`) plus the tooling surface (`lhtask_tooling_to_md`
 reports every supporting tool; `off` → neutral note; conditional curl/notifier lines; missing-tool
-gate skips rendered as ⚠️ with config hint), then bootstraps the plugin into a throwaway repo
+gate skips rendered as ⚠️ with config hint), the delivery helper (`lhtask_apply_impl`: happy path
+stages without committing and keeps the branch; dirty overlap and HEAD-moved fall back with a
+reason and stage nothing; unrelated dirty files don't block) and the plan idle-guard pattern,
+then bootstraps the plugin into a throwaway repo
 (`claude -p --plugin-dir … "/lhtask:bootstrap"`), commits a `TODO.md` task, runs the chain with
 `LHTASK_FOREGROUND=1`, and asserts `TODO.run.log` was produced. The E2E part needs the `claude`
 CLI, so it is not run in CI. To debug a change manually, bootstrap into a throwaway git repo and use:
