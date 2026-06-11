@@ -314,6 +314,10 @@ sequenceDiagram
 > cargo, …); „kein Kommando konfiguriert“ bleibt eine neutrale Notiz. Die Kette degradiert
 > graceful, aber degradiertes Tooling wird **gemeldet**, nie verschwiegen — bewusstes `off`
 > (`LHTASK_CODEGRAPH`/`LHTASK_FALLOW`) erscheint als neutrale Notiz, ⚠️ zählt in die Ampel.
+> Die Ampel (`lhtask_surface_review`) zählt dabei nur **zeilenführende** ✅/⚠️/❌-Marker —
+> ein ❌ mitten im Review-Prosa-Satz („no ❌ findings“) ist kein Finding und löst keinen
+> falschen 🔎-Pointer aus (dessen `AGENT_LOG`-Append den Arbeitsbaum dirty machen und den
+> nächsten apply-Delivery-Overlap-Check auslösen würde).
 
 ---
 
@@ -578,5 +582,5 @@ tail -f TODO.run.log                        # konsolidierter Live-Trace (pro Tri
 LHTASK_FOREGROUND=1 .githooks/post-commit   # getriggerte Stage synchron ausführen
 cat .git/lhtask-implement.log               # roher Per-Stage-Log
 touch .git/autoplan.disabled                # Killswitch (entfernen = wieder an)
-bash tests/smoke-test.sh                    # Smoke-Test: Unit-Teil (Modell-Auflösung + Tooling-Surface + apply-Delivery + Plan-Idle-Guard, ohne claude) + E2E (Wegwerf-Repo, braucht claude-CLI)
+bash tests/smoke-test.sh                    # Smoke-Test: Unit-Teil (Modell-Auflösung + Tooling-Surface + apply-Delivery + Plan-Idle-Guard + Ampel-Zählung, ohne claude) + E2E (Wegwerf-Repo, braucht claude-CLI)
 ```

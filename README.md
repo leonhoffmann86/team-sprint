@@ -1,7 +1,7 @@
 # LHTask — Autonomous TODO Workflow for Claude Code
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-0.8.1-blue)](https://github.com/leonhoffmann86/lhtask-plugin)
+[![Version](https://img.shields.io/badge/version-0.8.2-blue)](https://github.com/leonhoffmann86/lhtask-plugin)
 [![Built for Claude Code](https://img.shields.io/badge/Built_for-Claude_Code-orange)](https://claude.ai/code)
 
 **Turn a rough idea into a reviewed, tested implementation — automatically.**

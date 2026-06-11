@@ -83,7 +83,10 @@ Gate · Fallow · Model fallbacks · Reviews · Delivery (only when `LHTASK_DELI
 Tooling) and the
 `## 🔎` pointer — the in-loop reviewers replace the old terminal `lhtask-review.sh` call (the hook
 can't review agent commits because they set `AUTOPLAN_AGENT=1`; `LHTASK_REVIEW_AUTONOMOUS=0` leaves
-a gate-only loop). The impl branch is **never auto-merged** and **hard-reset (`-B`) each run** — it
+a gate-only loop). The traffic-light summary (`lhtask_surface_review`) counts only **line-leading**
+✅/⚠️/❌ markers — a marker mentioned mid-sentence in review prose ("no ❌ findings") is not a finding
+and must not raise a false `## 🔎` pointer (its `AGENT_LOG.md` append would dirty the tree and trip
+the next apply-delivery overlap check). The impl branch is **never auto-merged** and **hard-reset (`-B`) each run** — it
 can carry several unmerged commits, so target-repo users must merge or discard promptly.
 `templates/scripts/lhtask-lib.sh` holds shared helpers sourced by all stages, including the gate.
 
@@ -237,9 +240,10 @@ forced-Claude retry, `lhtask_model_is_xvendor`) plus the tooling surface (`lhtas
 reports every supporting tool; `off` → neutral note; conditional curl/notifier lines; missing-tool
 gate skips rendered as ⚠️ with config hint), the delivery helper (`lhtask_apply_impl`: happy path
 stages without committing and keeps the branch; dirty overlap and HEAD-moved fall back with a
-reason and stage nothing; unrelated dirty files don't block) and the plan idle-guard pattern
-(dashed and bare checkbox items both count as active), then bootstraps the plugin into a
-throwaway repo
+reason and stage nothing; unrelated dirty files don't block), the plan idle-guard pattern
+(dashed and bare checkbox items both count as active) and the traffic-light counting
+(`lhtask_surface_review`: only line-leading ❌ raises the 🔎 pointer, prose mentions don't),
+then bootstraps the plugin into a throwaway repo
 (`claude -p --plugin-dir … "/lhtask:bootstrap"`), commits a `TODO.md` task, runs the chain with
 `LHTASK_FOREGROUND=1`, and asserts `TODO.run.log` was produced. The E2E part needs the `claude`
 CLI, so it is not run in CI. To debug a change manually, bootstrap into a throwaway git repo and use:
