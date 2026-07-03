@@ -7,7 +7,7 @@
   "plugins": [
     {
       "name": "sprint",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "source": "./",
       "description": "Autonomous TODO workflow (plan → implement → review) as a portable, config-driven plugin with a bootstrap installer.",
       "license": "MIT",

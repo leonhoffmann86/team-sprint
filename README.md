@@ -1,7 +1,7 @@
 # Sprint — Autonomous TODO Workflow for Claude Code
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.1.0-blue)](https://github.com/leonhoffmann86/team-sprint)
+[![Version](https://img.shields.io/badge/version-1.2.0-blue)](https://github.com/leonhoffmann86/team-sprint)
 [![Built for Claude Code](https://img.shields.io/badge/Built_for-Claude_Code-orange)](https://claude.ai/code)
 
 **Turn a rough idea into a reviewed, tested implementation — automatically.**
@@ -67,6 +67,26 @@ Kill switch: `touch .git/autoplan.disabled` · live trace: `tail -f TODO.run.log
 Scan mode is poll-based by design (file watchers are race-prone; launchd's own
 manpage discourages `WatchPaths`). Setup templates: [`templates/trigger/`](templates/trigger/).
 Live status of a running chain: `scripts/sprint-standup.sh`.
+
+## Handoff: what happens when the chain converges
+
+The result lands on the impl branch — never auto-merged. The surface appends a
+**`NEEDS_HUMAN` block** with three explicit calls to action to `TODO.review.md`
+(also shown by `sprint-standup.sh`):
+
+```
+## 🤝 NEEDS_HUMAN — <item>
+Pre-merge SHA: `<sha>` · working tree: clean
+[1] TEST:      git merge --no-ff autoplan/impl   — then: <stack hint>
+[2] ROLLBACK:  git reset --hard <sha>
+[3] ACCEPT:    keep the merge · delete the impl branch · tick the item in TODO.md
+Test URL: <SPRINT_DEV_URL>
+Ticket reply (ready to send): <2–3 sentences for the reporter>
+```
+
+The TEST merge is deliberately local and reversible; when the working tree is
+dirty (parallel agents, uncommitted work) the merge CTA is blocked with a clear
+message instead.
 
 ## Security
 

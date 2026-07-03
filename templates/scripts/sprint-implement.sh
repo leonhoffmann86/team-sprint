@@ -268,6 +268,16 @@ elif [ "${SPRINT_DELIVERY:-branch}" = "apply" ]; then
 fi
 export SPRINT_DELIVERY_MD
 
+# Stage-1 handoff (NEEDS_HUMAN): explicit CTAs with the pre-merge SHA recorded, so
+# testing and rolling back never require looking up a branch name or SHA. Only in
+# branch mode — apply mode already lands the diff in the working tree.
+SPRINT_HANDOFF_MD=""
+if [ "$STATUS" = "done" ] && [ "${SPRINT_DELIVERY:-branch}" != "apply" ]; then
+  HANDOFF_REPLY="$(jq -r '.reporter_reply // empty' "$STATE_DIR/review-correctness.json" 2>/dev/null || true)"
+  SPRINT_HANDOFF_MD="$(sprint_handoff_block "$ROOT" "$BR" "$HANDOFF_REPLY")"
+fi
+export SPRINT_HANDOFF_MD
+
 # Publish TODO.review.md (✅/⚠️/❌) from the structured artifacts, then run the existing
 # surface (## 🔎 pointer into TODO.md + AGENT_LOG + notify) — reused verbatim.
 if [ -f "$STATE_DIR/gate.json" ]; then

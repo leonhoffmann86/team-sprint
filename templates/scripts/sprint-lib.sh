@@ -617,6 +617,32 @@ sprint_apply_impl() {  # $1 = repo root, $2 = impl branch
 
 # Build TODO.review.md from the structured artifacts (gate + reviews), then hand off
 # to sprint_surface_review for the ## 🔎 / AGENT_LOG / notify surface (verbatim).
+# Stage-1 handoff: the NEEDS_HUMAN CTA block for TODO.review.md. Pre-merge SHA and
+# dirty-tree guard are computed HERE so the human never has to look anything up.
+# $1 = root, $2 = impl branch, $3 = reporter reply (may be empty) -> markdown on stdout
+sprint_handoff_block() {
+  local root="$1" br="$2" reply="${3:-}" pre tree title hint="" url=""
+  pre="$(git -C "$root" rev-parse --short HEAD 2>/dev/null || echo '?')"
+  if [ -z "$(git -C "$root" status --porcelain 2>/dev/null)" ]; then tree="clean"; else tree="DIRTY"; fi
+  title="$(sprint_strip_skipped "$root/TODO.md" 2>/dev/null | grep -m1 -E '^[[:space:]]*-[[:space:]]*\[ \]' | sed -E 's/^[[:space:]]*-[[:space:]]*\[ \][[:space:]]*//' | cut -c1-70)"
+  # ponytail: stack hint only for php (classmap trap observed live); extend per stack when needed
+  case "${SPRINT_STACK:-auto}" in php) hint=" — then: composer dump-autoload (classmap)";; esac
+  [ -n "${SPRINT_DEV_URL:-}" ] && url="${SPRINT_DEV_URL}"
+
+  printf '## 🤝 NEEDS_HUMAN — %s\n' "${title:-$br}"
+  printf 'Pre-merge SHA: `%s` · working tree: %s\n\n' "$pre" "$tree"
+  if [ "$tree" = "clean" ]; then
+    printf '[1] TEST:      `git merge --no-ff %s`%s\n' "$br" "$hint"
+  else
+    printf '[1] TEST:      ⛔ blocked — working tree is DIRTY (parallel work?). Commit or stash first, then: `git merge --no-ff %s`%s\n' "$br" "$hint"
+  fi
+  printf '[2] ROLLBACK:  `git reset --hard %s`\n' "$pre"
+  printf '[3] ACCEPT:    keep the merge · `git branch -D %s` · tick the item in TODO.md\n' "$br"
+  [ -n "$url" ] && printf '\nTest URL: %s\n' "$url"
+  [ -n "$reply" ] && printf '\nTicket reply (ready to send):\n> %s\n' "$reply"
+  return 0   # the guards above may "fail" legitimately; never leak that to set -e callers
+}
+
 sprint_findings_surface() {  # $1 = gate.json ; $2.. = review-*.json files
   local root="${ROOT:-$SPRINT_ROOT}" gate="$1" f fallow fb; shift
   fallow="$(dirname "$gate")/fallow.json"          # written by sprint-gate.sh when fallow ran
@@ -640,6 +666,11 @@ sprint_findings_surface() {  # $1 = gate.json ; $2.. = review-*.json files
       # work reached the user (staged into the working tree, or why it stayed on
       # the branch). Counts into the traffic-light summary.
       printf '\n### Delivery\n%s\n' "$SPRINT_DELIVERY_MD"
+    fi
+    if [ -n "${SPRINT_HANDOFF_MD:-}" ]; then
+      # Set by sprint-implement.sh on convergence in branch mode: the NEEDS_HUMAN
+      # CTA block (test / rollback / accept with the pre-merge SHA recorded).
+      printf '\n%s\n' "$SPRINT_HANDOFF_MD"
     fi
     printf '\n### Tooling\n'
     sprint_tooling_to_md "$root"

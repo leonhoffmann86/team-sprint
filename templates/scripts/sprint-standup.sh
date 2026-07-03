@@ -26,6 +26,13 @@ if [ -n "$running" ]; then
 else
   echo "${dim}○ idle — no stage holds a lock${reset}"
 fi
+REVIEW="$ROOT/TODO.review.md"
+if [ -z "$running" ] && [ -f "$REVIEW" ] && grep -q '^## 🤝 NEEDS_HUMAN' "$REVIEW"; then
+  echo "${bold}${yellow}🤝 NEEDS_HUMAN — a converged result is waiting for you:${reset}"
+  awk '/^## 🤝 NEEDS_HUMAN/{f=1} f&&/^### Tooling/{exit} f{print}' "$REVIEW" | sed 's/^/   /'
+  echo ""
+fi
+
 if [ -f "$LOG" ]; then
   banner="$(grep -E '^=====' "$LOG" | tail -1 || true)"
   [ -n "$banner" ] && echo "${yellow}${banner}${reset}"

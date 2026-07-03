@@ -5,6 +5,27 @@ All notable changes to Sprint will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] — 2026-07-03
+
+### Added
+- **Stage-1 handoff (`NEEDS_HUMAN` CTA block)**: on convergence in branch mode the
+  surface appends an explicit three-CTA state block to `TODO.review.md` — TEST
+  (`git merge --no-ff <impl>` + stack hint, blocked with a clear message when the
+  working tree is dirty), ROLLBACK (`git reset --hard <pre-merge SHA>`), ACCEPT.
+  The pre-merge SHA is recorded at surface time, so testing and rolling back never
+  require looking anything up. Design follows the delivery-workflow research
+  (all comparable agent products converge on "handoff object with explicit
+  next actions, never auto-merge").
+- **`SPRINT_DEV_URL`** (sprint.conf): local dev-site base URL, shown as the Test URL
+  in the handoff block.
+- **Reporter reply**: on a `pass` verdict the correctness reviewer additionally
+  writes a 2–3 sentence non-technical `reporter_reply` (in the ticket's language) —
+  surfaced ready-to-send in the handoff block.
+- `sprint-standup.sh` shows the `NEEDS_HUMAN` block prominently when a converged
+  result is waiting and no stage is running.
+
+[1.2.0]: https://github.com/leonhoffmann86/team-sprint/releases/tag/v1.2.0
+
 ## [1.1.0] — 2026-07-03
 
 ### Added

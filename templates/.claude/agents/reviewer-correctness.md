@@ -30,5 +30,9 @@ Write your verdict as JSON to the exact path given in the task prompt:
 }
 ```
 
+When your verdict is `pass`, additionally include `"reporter_reply"`: 2–3 sentences in
+the language of the TODO item, addressed to the ticket reporter (non-technical),
+stating what changed and how they can verify it. Omit the field on `fail`.
+
 `verdict` is `pass` only when there are no blocker/major findings. If you cannot verify,
 say so as a finding rather than passing silently.

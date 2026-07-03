@@ -35,6 +35,10 @@ Inspect the repo root and pick sensible `sprint.conf` values:
 | `go.mod`           | Go       | `go test ./...`                           | empty |
 | `Cargo.toml`       | Rust     | `cargo test`                              | empty |
 
+Also ask for **`SPRINT_DEV_URL`** (the local dev site base URL, e.g.
+`http://myproject.local`) when the project is a web app — it feeds the Test URL
+in the NEEDS_HUMAN handoff block; leave empty otherwise.
+
 For `SPRINT_REVIEW_DIRS`, detect the top-level source + test dirs that exist
 (e.g. `src tests`, `app tests`, `lib test`, `pkg`). For `SPRINT_CONSTITUTION_FILES`,
 list the constitution files that exist or will be created (default `AGENTS.md`; add
