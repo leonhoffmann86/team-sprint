@@ -17,7 +17,15 @@
 # Kill switch: touch .git/autoplan.disabled   (same as the commit trigger)
 set -euo pipefail
 
-ROOT="${1:-$(git rev-parse --show-toplevel)}"
+# --seed: record the current active-item hash WITHOUT running the chain (used by
+# bootstrap before activating the poll, so pre-existing open items don't fire).
+# Keeping seed and compare in ONE implementation avoids newline-mismatch footguns.
+SEED_ONLY=0
+ARGS=()
+for a in "$@"; do
+  [ "$a" = "--seed" ] && SEED_ONLY=1 || ARGS+=("$a")
+done
+ROOT="${ARGS[0]:-$(git rev-parse --show-toplevel)}"
 cd "$ROOT"
 # shellcheck source=/dev/null
 . "$ROOT/scripts/sprint-lib.sh"
@@ -31,6 +39,7 @@ OPEN="$(sprint_strip_skipped "$ROOT/TODO.md" | grep -E '^[[:space:]]*-[[:space:]
 [ -n "$OPEN" ] || exit 0
 HASH="$(printf '%s' "$OPEN" | shasum -a 256 | cut -c1-16)"
 SEEN="$ROOT/.git/sprint-scan.hash"
+if [ "$SEED_ONLY" = 1 ]; then printf '%s' "$HASH" > "$SEEN"; echo "sprint-scan: seeded $HASH"; exit 0; fi
 [ -f "$SEEN" ] && [ "$(cat "$SEEN")" = "$HASH" ] && exit 0
 
 # Atomic claim (mkdir is POSIX-atomic): overlapping scans can't double-fire.

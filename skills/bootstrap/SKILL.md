@@ -118,8 +118,8 @@ lock files live under `.git/` and are never tracked. Don't duplicate existing en
   `~/Library/LaunchAgents/net.sprint.<slug>.plist`, then `launchctl bootstrap gui/$(id -u) <plist>`.
   Linux: `sprint@.service` + `sprint@.timer` as systemd user units.
   **Before activating**, seed the state so pre-existing open items don't instantly fire:
-  `bash -c '. scripts/sprint-lib.sh; sprint_load_config; sprint_strip_skipped TODO.md | grep -E "^\s*-\s*\[ \]" | shasum -a 256 | cut -c1-16 > .git/sprint-scan.hash'` —
-  or leave the seed out if the user WANTS the open items picked up immediately.
+  `scripts/sprint-scan.sh --seed` — or skip the seed if the user WANTS the open
+  items picked up immediately.
   The hook can stay active alongside (both triggers share locks + kill switch), or
   stay off if commits must never start agent runs (multi-agent repos).
 Kill switch for both modes: `touch .git/autoplan.disabled`.
