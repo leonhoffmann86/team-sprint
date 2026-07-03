@@ -26,10 +26,14 @@ sprint_load_config
 export SPRINT_MODEL_FALLBACK_LOG="$ROOT/.git/sprint-model-fallbacks.log"
 sprint_model_flags plan    # stage-level override: SPRINT_MODEL_PLAN (cross-vendor capable)
 
-# First commit has no parent → nothing to diff against.
-git rev-parse HEAD~1 >/dev/null 2>&1 || exit 0
-# Only act when THIS commit actually changed TODO.md.
-git diff --name-only HEAD~1 HEAD -- TODO.md | grep -qx 'TODO.md' || exit 0
+# Commit trigger (default): only act when THIS commit actually changed TODO.md.
+# The scan trigger (sprint-scan.sh, SPRINT_TRIGGER=scan) has already decided via
+# content hash that there is new work — no commit involved, so no diff to check.
+if [ "${SPRINT_TRIGGER:-commit}" = "commit" ]; then
+  # First commit has no parent → nothing to diff against.
+  git rev-parse HEAD~1 >/dev/null 2>&1 || exit 0
+  git diff --name-only HEAD~1 HEAD -- TODO.md | grep -qx 'TODO.md' || exit 0
+fi
 command -v claude >/dev/null 2>&1 || { echo "sprint-plan: claude CLI not found, skipping." >&2; exit 0; }
 
 SHA="$(git rev-parse --short HEAD)"

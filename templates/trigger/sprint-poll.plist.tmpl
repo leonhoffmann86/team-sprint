@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>net.sprint.__SLUG__</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>__REPO__/scripts/sprint-scan.sh</string>
+    <string>__REPO__</string>
+  </array>
+  <key>StartInterval</key><integer>30</integer>
+  <key>ThrottleInterval</key><integer>10</integer>
+  <key>RunAtLoad</key><true/>
+  <key>StandardOutPath</key><string>/tmp/sprint-scan.__SLUG__.log</string>
+  <key>StandardErrorPath</key><string>/tmp/sprint-scan.__SLUG__.err</string>
+</dict>
+</plist>

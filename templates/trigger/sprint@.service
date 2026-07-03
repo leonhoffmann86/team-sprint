@@ -1,0 +1,6 @@
+[Unit]
+Description=Sprint scan trigger for %i
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash %h/repos/%i/scripts/sprint-scan.sh %h/repos/%i

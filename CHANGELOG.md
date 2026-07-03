@@ -5,6 +5,20 @@ All notable changes to Sprint will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] — 2026-07-03
+
+### Added
+- **Scan trigger (`SPRINT_TRIGGER=scan`)** for repos whose `TODO.md` is deliberately
+  untracked: `scripts/sprint-scan.sh` + launchd/systemd poll templates
+  (`templates/trigger/`). Poll-don't-watch architecture: a 30s timer runs a
+  scan-reconcile pickup (active-item content hash vs. `.git/sprint-scan.hash`,
+  atomic `mkdir` claim) — no file watchers, no commit required. Commit trigger
+  unchanged and can run alongside; both share the `.git/autoplan.disabled` kill switch.
+- **`scripts/sprint-standup.sh`**: live terminal view of the running chain —
+  lock-based running/idle status, current phase banner, streaming tool-call trace.
+
+[1.1.0]: https://github.com/leonhoffmann86/team-sprint/releases/tag/v1.1.0
+
 ## [1.0.0] — 2026-07-03
 
 ### Changed

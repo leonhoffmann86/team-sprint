@@ -69,6 +69,8 @@ cp -n "$TPL/scripts/sprint-plan.sh"     "$ROOT/scripts/sprint-plan.sh"
 cp -n "$TPL/scripts/sprint-implement.sh" "$ROOT/scripts/sprint-implement.sh"
 cp -n "$TPL/scripts/sprint-review.sh"   "$ROOT/scripts/sprint-review.sh"
 cp -n "$TPL/scripts/sprint-gate.sh"     "$ROOT/scripts/sprint-gate.sh"
+cp -n "$TPL/scripts/sprint-scan.sh"     "$ROOT/scripts/sprint-scan.sh"
+cp -n "$TPL/scripts/sprint-standup.sh"  "$ROOT/scripts/sprint-standup.sh"
 chmod +x "$ROOT/.githooks/post-commit" "$ROOT"/scripts/sprint-*.sh
 
 # Subagent team (vendored copy — the headless loop reads these via --append-system-prompt;
@@ -104,10 +106,23 @@ human-visible consolidated run log), and `.sprint-state/` (the per-run role side
 excluded inside the worktree, but ignore it in the main repo too). The `.git/sprint-*.log` and
 lock files live under `.git/` and are never tracked. Don't duplicate existing entries.
 
-## 6. Activate the hooks
-```bash
-git -C "$ROOT" config core.hooksPath .githooks
-```
+## 6. Choose the trigger mode, then activate it
+**Ask the user** which trigger fits this repo (see `templates/trigger/README.md`):
+- **commit** (default; `TODO.md` is tracked): activate the hook —
+  ```bash
+  git -C "$ROOT" config core.hooksPath .githooks
+  ```
+- **scan** (poll; `TODO.md` deliberately untracked, or nobody should have to
+  commit to queue work): install the 30s poll from the plugin's trigger templates —
+  macOS: fill `$TPL/../trigger/sprint-poll.plist.tmpl` (`__REPO__`, `__SLUG__`) into
+  `~/Library/LaunchAgents/net.sprint.<slug>.plist`, then `launchctl bootstrap gui/$(id -u) <plist>`.
+  Linux: `sprint@.service` + `sprint@.timer` as systemd user units.
+  **Before activating**, seed the state so pre-existing open items don't instantly fire:
+  `bash -c '. scripts/sprint-lib.sh; sprint_load_config; sprint_strip_skipped TODO.md | grep -E "^\s*-\s*\[ \]" | shasum -a 256 | cut -c1-16 > .git/sprint-scan.hash'` —
+  or leave the seed out if the user WANTS the open items picked up immediately.
+  The hook can stay active alongside (both triggers share locks + kill switch), or
+  stay off if commits must never start agent runs (multi-agent repos).
+Kill switch for both modes: `touch .git/autoplan.disabled`.
 
 ## 7. Minimal Claude settings (allowlist + hard deny rules, no absolute paths)
 If `$ROOT/.claude/settings.json` is missing, create one with a small allowlist that lets the

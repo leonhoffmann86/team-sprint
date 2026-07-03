@@ -1,7 +1,7 @@
 # Sprint — Autonomous TODO Workflow for Claude Code
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.0.0-blue)](https://github.com/leonhoffmann86/team-sprint)
+[![Version](https://img.shields.io/badge/version-1.1.0-blue)](https://github.com/leonhoffmann86/team-sprint)
 [![Built for Claude Code](https://img.shields.io/badge/Built_for-Claude_Code-orange)](https://claude.ai/code)
 
 **Turn a rough idea into a reviewed, tested implementation — automatically.**
@@ -56,6 +56,17 @@ claude plugin update sprint`, then `/sprint:update` inside each bootstrapped rep
 
 Kill switch: `touch .git/autoplan.disabled` · live trace: `tail -f TODO.run.log`
 (streams every agent tool call in real time).
+
+## Trigger modes
+
+| Mode | Fires when | For |
+|---|---|---|
+| **commit** (default) | a commit changes `TODO.md` (post-commit hook) | repos that track `TODO.md` |
+| **scan** | a 30s launchd/systemd poll sees new active items (content hash) | repos whose `TODO.md` is deliberately untracked — nobody has to commit to queue work |
+
+Scan mode is poll-based by design (file watchers are race-prone; launchd's own
+manpage discourages `WatchPaths`). Setup templates: [`templates/trigger/`](templates/trigger/).
+Live status of a running chain: `scripts/sprint-standup.sh`.
 
 ## Security
 
