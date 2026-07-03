@@ -1,18 +1,18 @@
 {
-  "name": "lhtask-marketplace",
+  "name": "team-sprint",
   "owner": {
     "name": "Leon Hoffmann",
     "url": "https://leonhoffmann.net"
   },
   "plugins": [
     {
-      "name": "lhtask",
-      "version": "0.9.0",
+      "name": "sprint",
+      "version": "1.0.0",
       "source": "./",
       "description": "Autonomous TODO workflow (plan → implement → review) as a portable, config-driven plugin with a bootstrap installer.",
       "license": "MIT",
       "keywords": ["autonomous", "multi-agent", "code-review", "git-hooks", "workflow"],
-      "homepage": "https://github.com/leonhoffmann86/lhtask-plugin"
+      "homepage": "https://github.com/leonhoffmann86/team-sprint"
     }
   ]
 }

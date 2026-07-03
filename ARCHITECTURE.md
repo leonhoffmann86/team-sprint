@@ -1,6 +1,6 @@
-# LHTask — Architektur & Funktionsweise
+# Sprint — Architektur & Funktionsweise
 
-> Visualisierung der `lhtask`-Plugin-Mechanik in voller Tiefe. Alle Diagramme sind
+> Visualisierung der `sprint`-Plugin-Mechanik in voller Tiefe. Alle Diagramme sind
 > [Mermaid](https://mermaid.js.org/) und rendern direkt auf GitHub — keine externen Bilder.
 
 Inhalt:
@@ -29,23 +29,23 @@ Das Wichtigste zuerst — der mentale Bruch, ohne den nichts Sinn ergibt:
 flowchart LR
     subgraph PLUGIN["🧩 Plugin-Repo (dieses Repo) — Quelle der Wahrheit"]
         direction TB
-        SK1["skills/lh-task/SKILL.md<br/>Idee → 1 TODO-Item"]
+        SK1["skills/ticket/SKILL.md<br/>Idee → 1 TODO-Item"]
         SK2["skills/bootstrap/SKILL.md<br/>idempotenter Installer"]
         SK3["skills/update/SKILL.md<br/>re-sync der vendored Kette"]
         AG["agents/*.md<br/>Subagent-Team (6 Rollen)"]
-        TPL["templates/<br/>githooks/ · scripts/ · lhtask.conf · .mcp.json<br/>.claude/agents/ · AGENTS.md · TODO/DONE/AGENT_LOG"]
+        TPL["templates/<br/>githooks/ · scripts/ · sprint.conf · .mcp.json<br/>.claude/agents/ · AGENTS.md · TODO/DONE/AGENT_LOG"]
     end
 
     subgraph TARGET["📦 Ziel-Repo (irgendein Projekt) — hier läuft alles"]
         direction TB
         HOOK[".githooks/post-commit"]
-        SCR["scripts/lhtask-*.sh<br/>(lib · plan · implement · gate · review)"]
+        SCR["scripts/sprint-*.sh<br/>(lib · plan · implement · gate · review)"]
         VAG[".claude/agents/*.md<br/>(vendored Subagent-Team)"]
-        CONF["lhtask.conf<br/>(angepasst an Projekt)"]
+        CONF["sprint.conf<br/>(angepasst an Projekt)"]
         LIFE["TODO.md · DONE.md · AGENT_LOG.md<br/>AGENTS.md (Verfassung)"]
     end
 
-    SK2 -- "cp -n  (einmalig, /lhtask:bootstrap)" --> HOOK
+    SK2 -- "cp -n  (einmalig, /sprint:bootstrap)" --> HOOK
     SK2 -- "cp -n" --> SCR
     SK2 -- "cp -n (vendored Kopie)" --> VAG
     SK2 -- "cp -n + autodetect" --> CONF
@@ -59,25 +59,25 @@ flowchart LR
 
 > Konsequenz: Ein Skript hier zu ändern, beeinflusst **jedes künftig gebootstrappte Repo** —
 > aber **nicht** die git-Aktivität dieses Repos selbst. Bereits gebootstrappte Repos holt
-> `/lhtask:update` nach (nur Logik; `lhtask.conf` + Lifecycle-Dateien bleiben unangetastet).
+> `/sprint:update` nach (nur Logik; `sprint.conf` + Lifecycle-Dateien bleiben unangetastet).
 >
 > `agents/` (Plugin-kanonisch, interaktiv) und `templates/.claude/agents/` (vendored, von der
 > headless Kette per `--append-system-prompt` gelesen) müssen **identisch** bleiben —
 > `agents/` ändern, dann `make sync-agents`. Gleiches gilt für `.mcp.json` /
 > `templates/.mcp.json` (codegraph-MCP-Server).
 >
-> Die Skills registrieren die `/lhtask:*`-Slash-Commands **selbst** — ein `commands/`-Verzeichnis
+> Die Skills registrieren die `/sprint:*`-Slash-Commands **selbst** — ein `commands/`-Verzeichnis
 > gibt es bewusst nicht mehr: Wrapper dort registrierten dieselben Namen und **überschatteten**
 > die Skills (in v0.3.3 entfernt; `skills/` ist kanonisch).
 >
 > **Distribution** (verbindlich: [`docs/DISTRIBUTION.md`](docs/DISTRIBUTION.md)): installiert wird
-> **ausschließlich über GitHub** — `claude plugin marketplace add leonhoffmann86/lhtask-plugin`,
-> dann `claude plugin install lhtask@lhtask-marketplace` (das Marketplace-Manifest liegt dafür
+> **ausschließlich über GitHub** — `claude plugin marketplace add leonhoffmann86/team-sprint`,
+> dann `claude plugin install sprint@team-sprint` (das Marketplace-Manifest liegt dafür
 > exakt unter `.claude-plugin/marketplace.json`). `--plugin-dir` ist nur zum Testen des Plugins
 > selbst. Die Skills erzwingen das: Templates kommen aus `${CLAUDE_PLUGIN_ROOT}/templates`, mit
 > Fallback auf die installierte Marketplace-Cache-Kopie — ein Dev-Checkout wird **nie** als
 > Template-Quelle akzeptiert (ohne Installation stoppen sie mit der Install-Anweisung).
-> Daten fließen einbahnig Plugin → Consumer; Updates sind pull-basiert (`/lhtask:update`
+> Daten fließen einbahnig Plugin → Consumer; Updates sind pull-basiert (`/sprint:update`
 > im Ziel-Repo). Die Einbahnstraße gilt in beide Richtungen: Sessions im Consumer-Repo
 > schreiben **nie** ins Plugin-Repo — bei einem Fund die vendored Kopie lokal fixen und
 > den Befund *melden*, damit die Änderung plugin-seitig reviewt und released wird.
@@ -94,23 +94,23 @@ flowchart TB
     HUMAN(["👤 Mensch"])
 
     subgraph SKILLS["Skills — interaktiv, schreiben keinen Code"]
-        LHTASK["/lhtask:lh-task '&lt;Idee&gt;'<br/><i>Refinement: Idee → 1 strukturiertes TODO-Item</i>"]
-        BOOT["/lhtask:bootstrap<br/><i>Installer: Hooks + Config + Starter</i>"]
+        SPRINT["/sprint:ticket '&lt;Idee&gt;'<br/><i>Refinement: Idee → 1 strukturiertes TODO-Item</i>"]
+        BOOT["/sprint:bootstrap<br/><i>Installer: Hooks + Config + Starter</i>"]
     end
 
     COMMIT[["git commit"]]
 
     subgraph CHAIN["Die autonome Kette — headless claude, via post-commit"]
         direction TB
-        PLAN["① PLAN<br/>lhtask-plan.sh<br/>→ TODO.autoplan.md"]
-        IMPL["② IMPLEMENT<br/>lhtask-implement.sh — Subagent-Team:<br/>planner → navigator → Schleife(implementer →<br/>GATE (lhtask-gate.sh) → Reviewer), max LHTASK_MAX_ITER<br/>isolierter worktree, 1 Commit/Item → TODO.review.md"]
-        REV["③ REVIEW<br/>lhtask-review.sh<br/>→ TODO.review.md (nur Report)"]
+        PLAN["① PLAN<br/>sprint-plan.sh<br/>→ TODO.autoplan.md"]
+        IMPL["② IMPLEMENT<br/>sprint-implement.sh — Subagent-Team:<br/>planner → navigator → Schleife(implementer →<br/>GATE (sprint-gate.sh) → Reviewer), max SPRINT_MAX_ITER<br/>isolierter worktree, 1 Commit/Item → TODO.review.md"]
+        REV["③ REVIEW<br/>sprint-review.sh<br/>→ TODO.review.md (nur Report)"]
     end
 
-    HUMAN --> LHTASK
+    HUMAN --> SPRINT
     HUMAN --> BOOT
     BOOT -. "richtet ein" .-> CHAIN
-    LHTASK -- "füllt TODO.md" --> COMMIT
+    SPRINT -- "füllt TODO.md" --> COMMIT
     HUMAN -- "committet TODO.md" --> COMMIT
     COMMIT --> PLAN
     PLAN -- "chained im selben Lauf" --> IMPL
@@ -132,7 +132,7 @@ Von der vagen Notiz bis zum reviewten Branch — der „Happy Path“ aus Nutzer
 
 ```mermaid
 flowchart LR
-    A["💡 vage Idee"] --> B["/lhtask:lh-task"]
+    A["💡 vage Idee"] --> B["/sprint:ticket"]
     B --> C{"Frage oder<br/>Aufgabe?"}
     C -- "Frage" --> C1["aus Code beantworten"]
     C -- "Aufgabe" --> D["am echten Code erden<br/>(codegraph / Grep)"]
@@ -149,8 +149,8 @@ flowchart LR
     M2 --> M
     L -- "✅" --> RV{"Reviewer:<br/>blocker/major?"}
     RV -- "ja" --> M2
-    RV -- "nein → DONE" --> O["TODO.review.md (Ampel)<br/>+ Branch bleibt stehen<br/>(LHTASK_DELIVERY=apply: Ergebnis<br/>gestaged im Arbeitsbaum, selbst committen)"]
-    M2 -. "LHTASK_MAX_ITER erschöpft" .-> ESC["🔎 Review-Findings<br/>+ AGENT_LOG (eskaliert)"]
+    RV -- "nein → DONE" --> O["TODO.review.md (Ampel)<br/>+ Branch bleibt stehen<br/>(SPRINT_DELIVERY=apply: Ergebnis<br/>gestaged im Arbeitsbaum, selbst committen)"]
+    M2 -. "SPRINT_MAX_ITER erschöpft" .-> ESC["🔎 Review-Findings<br/>+ AGENT_LOG (eskaliert)"]
     O --> P{"Mensch:<br/>mergen?"}
     P -- "ja" --> Q["merge autoplan/impl"]
     P -- "nein" --> R["verwerfen"]
@@ -180,11 +180,11 @@ flowchart TB
     SYNC --> DIFF["changed = git diff --name-only HEAD~1 HEAD"]
 
     DIFF --> C1{"TODO.md<br/>geändert?"}
-    C1 -- "ja" --> PLAN["scripts/lhtask-plan.sh<br/>(→ chained implement)"]
+    C1 -- "ja" --> PLAN["scripts/sprint-plan.sh<br/>(→ chained implement)"]
     C1 -- "nein" --> C2
 
-    PLAN --> C2{"Datei in<br/>LHTASK_REVIEW_DIRS/<br/>geändert?"}
-    C2 -- "ja" --> REV["scripts/lhtask-review.sh"]
+    PLAN --> C2{"Datei in<br/>SPRINT_REVIEW_DIRS/<br/>geändert?"}
+    C2 -- "ja" --> REV["scripts/sprint-review.sh"]
     C2 -- "nein" --> END(["exit 0"])
     REV --> END
 
@@ -194,10 +194,10 @@ flowchart TB
 ```
 
 > Das Review-Regex wird dynamisch aus der Config gebaut:
-> `review_re="^(${LHTASK_REVIEW_DIRS// /|})/"` → aus `"src tests"` wird `^(src|tests)/`.
+> `review_re="^(${SPRINT_REVIEW_DIRS// /|})/"` → aus `"src tests"` wird `^(src|tests)/`.
 >
 > Die Plan-Stage steigt zusätzlich sauber aus (ohne claude-Lauf), wenn nach
-> `lhtask_strip_skipped` **kein aktives Checkbox-Item** übrig ist — der Guard ist bewusst
+> `sprint_strip_skipped` **kein aktives Checkbox-Item** übrig ist — der Guard ist bewusst
 > tolerant: `- [ ]`, `* [ ]` und nacktes `[ ]` zählen alle (ein falsches „nichts zu tun"
 > blockiert still echte Arbeit — schlimmer als ein Leerlauf). Beispiel: der Commit eines
 > applied/gemergten Ketten-Ergebnisses, dessen `TODO.md`-Änderung nur Items entfernt hat.
@@ -216,11 +216,11 @@ sequenceDiagram
     autonumber
     actor U as 👤 Mensch
     participant H as post-commit
-    participant P as lhtask-plan.sh
-    participant I as lhtask-implement.sh<br/>(Orchestrator, reine Shell)
+    participant P as sprint-plan.sh
+    participant I as sprint-implement.sh<br/>(Orchestrator, reine Shell)
     participant W as git worktree<br/>(autoplan/impl)
     participant C as headless claude<br/>(Rolle pro Aufruf)
-    participant G as lhtask-gate.sh<br/>(deterministisch, kein LLM)
+    participant G as sprint-gate.sh<br/>(deterministisch, kein LLM)
 
     U->>H: commit TODO.md
     H->>H: Guards (AGENT? disabled? HEAD~1?)
@@ -228,7 +228,7 @@ sequenceDiagram
 
     activate P
     P->>P: Lock nehmen · TODO.run.log resetten
-    P->>P: lhtask_strip_skipped(TODO.md) → ACTIVE
+    P->>P: sprint_strip_skipped(TODO.md) → ACTIVE
     P->>C: Plan-Prompt (Verfassung + ACTIVE)
     C-->>P: TODO.autoplan.md (Sub-Steps + Risiko)
     P->>I: chain implement (selber detached Lauf)
@@ -236,21 +236,21 @@ sequenceDiagram
 
     activate I
     I->>W: git worktree add -f -B autoplan/impl HEAD
-    Note over I,W: venv + codegraph.db symlinken ·<br/>.lhtask-state/ via info/exclude von Commits ausgeschlossen
+    Note over I,W: venv + codegraph.db symlinken ·<br/>.sprint-state/ via info/exclude von Commits ausgeschlossen
     I->>C: Rolle PLANNER (read-only)
-    C-->>I: .lhtask-state/plan.json (Risiko, Akzeptanzkriterien; high-risk → defer)
+    C-->>I: .sprint-state/plan.json (Risiko, Akzeptanzkriterien; high-risk → defer)
     I->>C: Rolle NAVIGATOR (read-only, codegraph)
-    C-->>I: .lhtask-state/navigation.json (Konventionen, Blast Radius)
-    loop bis LHTASK_MAX_ITER (default 3)
+    C-->>I: .sprint-state/navigation.json (Konventionen, Blast Radius)
+    loop bis SPRINT_MAX_ITER (default 3)
         I->>C: Rolle IMPLEMENTER (acceptEdits + Deny-Rules)
         C->>W: 1 Commit: Code + TODO→DONE + AGENT_LOG<br/>(high-risk → 🚧 Deferred, doc-only Commit)
         I->>G: GATE: lint / typecheck / test / build<br/>+ fallow (falls installiert)
         alt Gate rot
             G-->>I: gate.json + fallow.json (verdict fail) → Loopback mit Findings
-        else Gate grün + LHTASK_REVIEW_AUTONOMOUS=1
+        else Gate grün + SPRINT_REVIEW_AUTONOMOUS=1
             I->>C: Rolle REVIEWER-CORRECTNESS (read-only)
             I->>C: Rolle REVIEWER-CONVENTIONS (read-only)
-            C-->>I: .lhtask-state/review-*.json (fail-closed geparst)
+            C-->>I: .sprint-state/review-*.json (fail-closed geparst)
             alt blocker/major
                 I->>I: Loopback mit Reviewer-Findings
             else sauber
@@ -258,21 +258,21 @@ sequenceDiagram
             end
         end
     end
-    Note right of C: jede Rolle läuft mit<br/>AUTOPLAN_AGENT=1 +<br/>Timeout (LHTASK_PHASE_TIMEOUT)<br/>+ eigenem Modell (LHTASK_MODEL_&lt;ROLLE&gt;<br/>→ LHTASK_MODEL → CLI-Default;<br/>openrouter:-Prefix → Proxy-Env pro Prozess)<br/>+ Live-Trace der Tool-Calls →<br/>TODO.run.log (LHTASK_STREAM, jq-gated)
-    I->>I: LHTASK_DELIVERY=apply + konvergiert?<br/>lhtask_apply_impl: git merge --squash →<br/>Ergebnis GESTAGED im Arbeitsbaum (nie committet)<br/>sonst Fallback auf Branch (Grund wird surfaced)
-    I->>I: lhtask_findings_surface: TODO.review.md (Ampel:<br/>Gate · Fallow · Model fallbacks · Reviews ·<br/>Delivery (bei apply) · Tooling)<br/>+ ❌→🔎 in TODO.md + AGENT_LOG
+    Note right of C: jede Rolle läuft mit<br/>AUTOPLAN_AGENT=1 +<br/>Timeout (SPRINT_PHASE_TIMEOUT)<br/>+ eigenem Modell (SPRINT_MODEL_&lt;ROLLE&gt;<br/>→ SPRINT_MODEL → CLI-Default;<br/>openrouter:-Prefix → Proxy-Env pro Prozess)<br/>+ Live-Trace der Tool-Calls →<br/>TODO.run.log (SPRINT_STREAM, jq-gated)
+    I->>I: SPRINT_DELIVERY=apply + konvergiert?<br/>sprint_apply_impl: git merge --squash →<br/>Ergebnis GESTAGED im Arbeitsbaum (nie committet)<br/>sonst Fallback auf Branch (Grund wird surfaced)
+    I->>I: sprint_findings_surface: TODO.review.md (Ampel:<br/>Gate · Fallow · Model fallbacks · Reviews ·<br/>Delivery (bei apply) · Tooling)<br/>+ ❌→🔎 in TODO.md + AGENT_LOG
     I->>I: worktree entfernen (Branch bleibt!)<br/>nicht konvergiert → Eskalations-Note
     deactivate I
     I-->>U: "✅ x ⚠️ y ❌ z — siehe TODO.review.md"
     U->>U: git log autoplan/impl → mergen oder verwerfen<br/>(apply: gestagte Änderungen im IDE reviewen → selbst committen)
 ```
 
-> Die In-Loop-Reviewer ersetzen den früheren terminalen `lhtask-review.sh`-Aufruf am Ende der
+> Die In-Loop-Reviewer ersetzen den früheren terminalen `sprint-review.sh`-Aufruf am Ende der
 > Implement-Stage (der Hook kann Agent-Commits nicht reviewen, weil sie `AUTOPLAN_AGENT=1`
-> setzen). `lhtask-review.sh` läuft weiterhin für **menschliche** Commits in den Review-Dirs —
-> report-only, inklusive eines Fallow-Abschnitts (Report: `.git/lhtask-fallow.json`) und des
+> setzen). `sprint-review.sh` läuft weiterhin für **menschliche** Commits in den Review-Dirs —
+> report-only, inklusive eines Fallow-Abschnitts (Report: `.git/sprint-fallow.json`) und des
 > `### Tooling`-Abschnitts.
-> `LHTASK_REVIEW_AUTONOMOUS=0` schaltet die Reviewer-Phase ab (Gate-only-Schleife).
+> `SPRINT_REVIEW_AUTONOMOUS=0` schaltet die Reviewer-Phase ab (Gate-only-Schleife).
 > Nur `gate.json` ist maschinen-vertrauenswürdig (von der Shell geschrieben); Agent-JSON wird
 > jq-oder-grep und **fail-closed** gelesen (fehlend/kaputt = blocker → Loopback, nie stilles DONE).
 > `reviewer-visual` ist als Scaffold dabei, aber noch **nicht** in die Schleife verdrahtet.
@@ -280,23 +280,23 @@ sequenceDiagram
 > **Fallow** (<https://docs.fallow.tools>) ist der fünfte deterministische Gate-Check: `fallow audit`
 > (Dead Code / Duplikate / Komplexität), auf den Changeset des Item-Commits gescoped und
 > „new-only" gegated — nur vom Change **eingeführte** Findings machen den Gate rot. Der Roh-Report
-> landet als `.lhtask-state/fallow.json` neben `gate.json`; Loopback-Prompt und Reviewer lesen ihn
+> landet als `.sprint-state/fallow.json` neben `gate.json`; Loopback-Prompt und Reviewer lesen ihn
 > mit. Graceful: nicht installiert → skip, Laufzeit-/Config-Fehler (exit 2) → skip, nie per `npx`
-> nachgeladen (der Gate bleibt offline-deterministisch). Steuerung: `LHTASK_FALLOW` / `LHTASK_FALLOW_CMD`.
+> nachgeladen (der Gate bleibt offline-deterministisch). Steuerung: `SPRINT_FALLOW` / `SPRINT_FALLOW_CMD`.
 >
 > **Cross-Vendor-Modelle** ([`docs/CROSS-VENDOR.md`](docs/CROSS-VENDOR.md)): ein Rollen-Modell der
 > Form `openrouter:<vendor>/<model>` läuft auf einem **Nicht-Claude-Modell** hinter dem übersetzenden
-> Proxy `LHTASK_PROXY_URL` (z. B. LiteLLM `/v1/messages` vor OpenRouter) — `ANTHROPIC_BASE_URL`/
+> Proxy `SPRINT_PROXY_URL` (z. B. LiteLLM `/v1/messages` vor OpenRouter) — `ANTHROPIC_BASE_URL`/
 > `ANTHROPIC_AUTH_TOKEN` werden **pro Rollen-Prozess** injiziert, Geschwister-Rollen bleiben auf der
 > nativen API. Graceful **und laut**: Proxy unkonfiguriert/unerreichbar → Claude-Fallback; ein
 > Cross-Vendor-Reviewer mit fehlendem/kaputtem Verdict-JSON bekommt **einen** Claude-Retry
-> (`LHTASK_FORCE_CLAUDE=1`), bevor fail-closed greift. Jede Degradation wird protokolliert
-> (`lhtask_model_fallback_note`) und als ❌ unter `### Model fallbacks` in `TODO.review.md`
+> (`SPRINT_FORCE_CLAUDE=1`), bevor fail-closed greift. Jede Degradation wird protokolliert
+> (`sprint_model_fallback_note`) und als ❌ unter `### Model fallbacks` in `TODO.review.md`
 > sichtbar (→ 🔎-Pointer + AGENT_LOG) — nie still.
 >
-> **Delivery** (`LHTASK_DELIVERY`, default `branch`): mit `apply` wird VOLL konvergierte Arbeit
+> **Delivery** (`SPRINT_DELIVERY`, default `branch`): mit `apply` wird VOLL konvergierte Arbeit
 > (Gate grün + Reviews ok) per `git merge --squash` als **gestagte, uncommittete Änderungen** in
-> den Arbeitsbaum gelegt (`lhtask_apply_impl` in `lhtask-lib.sh`) — IDE-natives Review in der
+> den Arbeitsbaum gelegt (`sprint_apply_impl` in `sprint-lib.sh`) — IDE-natives Review in der
 > Changes-View, **der Mensch committet** (die Nie-auto-mergen-Invariante hält). Angewendet wird
 > nur beweisbar konfliktfrei: der Impl-Branch sitzt exakt auf dem aktuellen HEAD **und** keine
 > lokal uncommitteten Änderungen überlappen das Ergebnis; sonst Fallback auf den Branch-Modus
@@ -305,16 +305,16 @@ sequenceDiagram
 > stehen (hard-reset beim nächsten Lauf).
 >
 > **Tooling-Sichtbarkeit:** jede `TODO.review.md` (In-Loop-Surface **und** Standalone-Review) endet
-> mit einem `### Tooling`-Abschnitt (`lhtask_tooling_to_md`): codegraph (Binary **und** Repo-Index),
+> mit einem `### Tooling`-Abschnitt (`sprint_tooling_to_md`): codegraph (Binary **und** Repo-Index),
 > fallow, jq, timeout als ✅/⚠️ mit Install-Hinweis und konkretem Impact — dazu konditional `curl`
-> (nur bei konfiguriertem Cross-Vendor-Modell, `lhtask_any_xvendor`; speist den Proxy-Probe) und
-> der Desktop-Notifier (nur bei `LHTASK_NOTIFY=1`). Gate-Checks, die wegen eines **fehlenden
-> Tools** übersprungen wurden, erscheinen als ⚠️ mit Install-/`LHTASK_GATE_<NAME>`-Hinweis
-> (fallow: `LHTASK_FALLOW_CMD`) — generisch für alle Stack-Tools (eslint, tsc, ruff, pytest,
+> (nur bei konfiguriertem Cross-Vendor-Modell, `sprint_any_xvendor`; speist den Proxy-Probe) und
+> der Desktop-Notifier (nur bei `SPRINT_NOTIFY=1`). Gate-Checks, die wegen eines **fehlenden
+> Tools** übersprungen wurden, erscheinen als ⚠️ mit Install-/`SPRINT_GATE_<NAME>`-Hinweis
+> (fallow: `SPRINT_FALLOW_CMD`) — generisch für alle Stack-Tools (eslint, tsc, ruff, pytest,
 > cargo, …); „kein Kommando konfiguriert“ bleibt eine neutrale Notiz. Die Kette degradiert
 > graceful, aber degradiertes Tooling wird **gemeldet**, nie verschwiegen — bewusstes `off`
-> (`LHTASK_CODEGRAPH`/`LHTASK_FALLOW`) erscheint als neutrale Notiz, ⚠️ zählt in die Ampel.
-> Die Ampel (`lhtask_surface_review`) zählt dabei nur **zeilenführende** ✅/⚠️/❌-Marker —
+> (`SPRINT_CODEGRAPH`/`SPRINT_FALLOW`) erscheint als neutrale Notiz, ⚠️ zählt in die Ampel.
+> Die Ampel (`sprint_surface_review`) zählt dabei nur **zeilenführende** ✅/⚠️/❌-Marker —
 > ein ❌ mitten im Review-Prosa-Satz („no ❌ findings“) ist kein Finding und löst keinen
 > falschen 🔎-Pointer aus (dessen `AGENT_LOG`-Append den Arbeitsbaum dirty machen und den
 > nächsten apply-Delivery-Overlap-Check auslösen würde).
@@ -334,16 +334,16 @@ flowchart TB
         VENV[".venv"]
     end
 
-    subgraph WORKTREE["../.lhtask-worktree-&lt;repo&gt; — Sibling-Verzeichnis, wegwerfbar"]
+    subgraph WORKTREE["../.sprint-worktree-&lt;repo&gt; — Sibling-Verzeichnis, wegwerfbar"]
         direction TB
         WT_IMPL["isolierter Checkout<br/>branch: autoplan/impl"]
         LN1["↳ .venv (symlink)"]
         LN2["↳ .codegraph/codegraph.db (symlink)"]
-        ST["↳ .lhtask-state/ — Rollen-Sidecars<br/>(plan/navigation/gate/fallow/review-*.json)<br/>via info/exclude nie committet"]
+        ST["↳ .sprint-state/ — Rollen-Sidecars<br/>(plan/navigation/gate/fallow/review-*.json)<br/>via info/exclude nie committet"]
     end
 
     WT_MAIN -- "git worktree add -f -B autoplan/impl HEAD" --> WT_IMPL
-    VENV -. "ln -s (nur falls LHTASK_VENV gesetzt)" .-> LN1
+    VENV -. "ln -s (nur falls SPRINT_VENV gesetzt)" .-> LN1
     DB -. "ln -s (Caller/Impact-Analyse)" .-> LN2
 
     WT_IMPL --> COMMITS["1 Commit pro Item<br/>(AUTOPLAN_AGENT=1)"]
@@ -356,7 +356,7 @@ flowchart TB
     style HUMAN fill:#eef2ff,stroke:#6366f1
 ```
 
-> Der worktree liegt als **Sibling-Verzeichnis neben dem Repo** (`../.lhtask-worktree-<repo>`),
+> Der worktree liegt als **Sibling-Verzeichnis neben dem Repo** (`../.sprint-worktree-<repo>`),
 > bewusst **nicht** unter `.git/`: die Agent-Permission-Schicht verweigert jeden Write unter
 > einem `.git/`-Pfad automatisch — das brach Implementer-Läufe still (impl-error nach 0 Edits).
 >
@@ -365,9 +365,9 @@ flowchart TB
 > neuen `worktree add` nicht blockiert.
 >
 > **Merge-Disziplin:** `-B` setzt den Branch bei jedem Lauf hart auf HEAD zurück, und die
-> Schleife kann bis zu `LHTASK_MAX_ITER` ungemergte Commits hinterlassen — den Branch zeitnah
+> Schleife kann bis zu `SPRINT_MAX_ITER` ungemergte Commits hinterlassen — den Branch zeitnah
 > reviewen und **mergen oder verwerfen**; ein liegengebliebener Branch wird beim nächsten Lauf
-> überschrieben. Mit `LHTASK_DELIVERY=apply` entfällt das manuelle Mergen im Konvergenz-Fall:
+> überschrieben. Mit `SPRINT_DELIVERY=apply` entfällt das manuelle Mergen im Konvergenz-Fall:
 > das Ergebnis liegt bereits **gestaged** im Arbeitsbaum (selbst committen), der Branch bleibt
 > nur als Backup stehen.
 
@@ -376,7 +376,7 @@ flowchart TB
 ## 7. Datei-Lebenszyklus & die Skip-Konvention
 
 Welche Datei was bedeutet — und wie der Mensch mit drei Markierungen steuert, was die
-Kette anfasst. `lhtask_strip_skipped` filtert vor jeder Plan-/Implement-Stage.
+Kette anfasst. `sprint_strip_skipped` filtert vor jeder Plan-/Implement-Stage.
 
 ```mermaid
 flowchart LR
@@ -391,7 +391,7 @@ flowchart LR
         AUTOPLAN["TODO.autoplan.md<br/>Plan-Vorschläge"]
         REVIEW["TODO.review.md<br/>Review-Report (Ampel)"]
         RUNLOG["TODO.run.log<br/>Live-Trace jedes Tool-Calls (tail -f)"]
-        STATE[".lhtask-state/<br/>Rollen-Sidecars (JSON)"]
+        STATE[".sprint-state/<br/>Rollen-Sidecars (JSON)"]
     end
 
     TODO -- "Item erledigt" --> DONE
@@ -412,7 +412,7 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    FILE["TODO.md"] --> STRIP["lhtask_strip_skipped (awk)"]
+    FILE["TODO.md"] --> STRIP["sprint_strip_skipped (awk)"]
     STRIP --> ACTIVE["✅ AKTIV — wird geplant & implementiert<br/>(normale - [ ] Items)"]
     STRIP --> SKIP1["🗨️ in &lt;!-- … --&gt; auskommentiert → übersprungen"]
     STRIP --> SKIP2["## 🚧 Deferred → übersprungen<br/>(high-risk / fehlgeschlagen)"]
@@ -452,11 +452,11 @@ Zwei weitere Konsequenzen derselben Variable:
 
 - Weil Agent-Commits den Hook überspringen, kann er die autonome Arbeit **nicht** selbst
   reviewen → deshalb laufen die **In-Loop-Reviewer** (correctness + conventions) direkt in
-  der Implement-Schleife (`LHTASK_REVIEW_AUTONOMOUS=1`).
-- `AUTOPLAN_AGENT=1` wird in `lhtask-implement.sh` **zentral in `run_phase`** gesetzt (nie pro
+  der Implement-Schleife (`SPRINT_REVIEW_AUTONOMOUS=1`).
+- `AUTOPLAN_AGENT=1` wird in `sprint-implement.sh` **zentral in `run_phase`** gesetzt (nie pro
   Call-Site), und auch die Review-Stage setzt es defensiv — keine Rolle kann den Hook rekursieren.
 
-Dazu kommen harte Deny-Rules für jede Rolle (`lhtask_deny_settings`, via `--settings`):
+Dazu kommen harte Deny-Rules für jede Rolle (`sprint_deny_settings`, via `--settings`):
 `git push` / `git reset --hard` / `git rebase` / `rm -rf` / Task / Agent sind verboten — Deny wird
 zuerst ausgewertet und kann von keiner Ebene re-allowed werden. Reviewer/Planner/Navigator laufen
 read-only (`dontAsk` + Allowlist), der Implementer commit-fähig (`acceptEdits`).
@@ -469,13 +469,13 @@ Jede Stage ist nebenläufigkeits-sicher und blockiert den Commit nicht.
 
 ```mermaid
 flowchart TB
-    START["Stage startet"] --> REAP["lhtask_reap_stale_lock<br/>(Lock älter als N min → entfernen)"]
-    REAP --> LOCK{"mkdir .git/lhtask-*.lock"}
+    START["Stage startet"] --> REAP["sprint_reap_stale_lock<br/>(Lock älter als N min → entfernen)"]
+    REAP --> LOCK{"mkdir .git/sprint-*.lock"}
     LOCK -- "scheitert (läuft schon)" --> SKIP(["exit 0 — sauber überspringen"])
-    LOCK -- "ok" --> MODE{"LHTASK_FOREGROUND=1?"}
+    LOCK -- "ok" --> MODE{"SPRINT_FOREGROUND=1?"}
     MODE -- "nein (default)" --> BG["( do_run ) &amp; — detached<br/>Commit kehrt sofort zurück"]
     MODE -- "ja (debug)" --> FG["( do_run ) — synchron"]
-    BG --> WORK["claude läuft (~Minuten)<br/>stream-json → lhtask_stream_trace<br/>→ TODO.run.log + .git/lhtask-*.log"]
+    BG --> WORK["claude läuft (~Minuten)<br/>stream-json → sprint_stream_trace<br/>→ TODO.run.log + .git/sprint-*.log"]
     FG --> WORK
     WORK --> RELEASE["trap EXIT: rmdir lock"]
 
@@ -486,14 +486,14 @@ flowchart TB
 - `mkdir` als atomares Lock (ein Lauf gewinnt; Nebenläufer steigen sauber aus).
 - `reap_stale_lock` verhindert, dass ein gekillter Lauf die Kette permanent blockiert
   (Plan/Review: 15 min, Implement: 30 min).
-- Jede headless Phase läuft unter `timeout`/`gtimeout` (`LHTASK_PHASE_TIMEOUT`, default 600 s) —
+- Jede headless Phase läuft unter `timeout`/`gtimeout` (`SPRINT_PHASE_TIMEOUT`, default 600 s) —
   das begrenzt auch, wie lange der längere Implement-Lauf das Lock hält. Kein timeout-Tool
   installiert → Graceful No-op.
 - **Detached by default** → der Commit kehrt sofort zurück, ein Platzhalter landet sofort
-  im Sidecar. `LHTASK_FOREGROUND=1` ist der Debug-/Test-Hebel (synchron).
-- **Live-Trace** (`LHTASK_STREAM`, default `auto`): jede headless Phase (Plan, alle
+  im Sidecar. `SPRINT_FOREGROUND=1` ist der Debug-/Test-Hebel (synchron).
+- **Live-Trace** (`SPRINT_STREAM`, default `auto`): jede headless Phase (Plan, alle
   Schleifen-Rollen, Standalone-Review) streamt ihre Tool-Calls per
-  `--output-format stream-json` durch den jq-Renderer `lhtask_stream_trace` in `TODO.run.log`
+  `--output-format stream-json` durch den jq-Renderer `sprint_stream_trace` in `TODO.run.log`
   (`⚙ implementer → Edit: app/x.py` … `✔ implementer done — 7 turns`) — `tail -f TODO.run.log`
   ist damit eine Echtzeit-Statusansicht statt minutenlanger Stille („hängt er oder arbeitet
   er?"). Ohne jq oder mit `off` verhält sich alles exakt wie vor 0.9.0 (still bis Phasenende);
@@ -507,30 +507,30 @@ Wie die Kette einmalig in ein Repo eingebaut wird — idempotent, nichts wird st
 
 ```mermaid
 flowchart TB
-    S0["/lhtask:bootstrap"] --> S1["Templates finden (nur installiertes Plugin)<br/>${CLAUDE_PLUGIN_ROOT}/templates<br/>Fallback: Marketplace-Cache — nie ein Dev-Checkout"]
+    S0["/sprint:bootstrap"] --> S1["Templates finden (nur installiertes Plugin)<br/>${CLAUDE_PLUGIN_ROOT}/templates<br/>Fallback: Marketplace-Cache — nie ein Dev-Checkout"]
     S1 --> S2{"git-Repo?"}
     S2 -- "nein" --> OFFER["git init anbieten"]
     S2 -- "ja" --> S3["Projekttyp erkennen<br/>pyproject/package.json/composer.json/go.mod/Cargo.toml"]
     S3 --> S4["Config-Defaults vorschlagen<br/>TEST_CMD · VENV · REVIEW_DIRS<br/>+ Gate-Block (STACK · GATE_*)"]
-    S4 --> S5["cp -n: Hooks + scripts/ (inkl. lhtask-gate.sh)<br/>+ .claude/agents/ (Subagent-Team)<br/>+ .mcp.json (codegraph; mergen, nie clobbern)"]
-    S5 --> S6["lhtask.conf schreiben<br/>(mit erkannten Werten)"]
+    S4 --> S5["cp -n: Hooks + scripts/ (inkl. sprint-gate.sh)<br/>+ .claude/agents/ (Subagent-Team)<br/>+ .mcp.json (codegraph; mergen, nie clobbern)"]
+    S5 --> S6["sprint.conf schreiben<br/>(mit erkannten Werten)"]
     S6 --> S7["Lifecycle + AGENTS.md seeden<br/>(nur falls fehlend)"]
-    S7 --> S8[".gitignore ergänzen<br/>autoplan/review/run.log + .lhtask-state/"]
+    S7 --> S8[".gitignore ergänzen<br/>autoplan/review/run.log + .sprint-state/"]
     S8 --> S9["git config core.hooksPath .githooks"]
     S9 --> S10[".claude/settings.json<br/>Allowlist + Deny-Block mergen<br/>(keine abs. Pfade)"]
     S10 --> S11["Tooling-Check (Pflicht):<br/>codegraph (+ Index) · fallow · jq · timeout<br/>fehlend → Install-Hinweis + Impact"]
-    S11 --> S12{"Registry opt-in?<br/>(~/.config/lhtask/registry,<br/>default NEIN für interne Repos)"}
+    S11 --> S12{"Registry opt-in?<br/>(~/.config/sprint/registry,<br/>default NEIN für interne Repos)"}
     S12 --> DONE(["✅ Repo ist plug-and-play"])
 
     style DONE fill:#f0fdf4,stroke:#16a34a
     style OFFER fill:#fffbeb,stroke:#d97706
 ```
 
-> Nach einem Plugin-Update bringt **`/lhtask:update`** die vendored Logik (Scripts, Hooks,
-> Agents, ggf. `.mcp.json`-Merge) im Repo auf Stand — `lhtask.conf` und die Lifecycle-Dateien
+> Nach einem Plugin-Update bringt **`/sprint:update`** die vendored Logik (Scripts, Hooks,
+> Agents, ggf. `.mcp.json`-Merge) im Repo auf Stand — `sprint.conf` und die Lifecycle-Dateien
 > bleiben unangetastet; neue Config-Keys werden nur als Drift gemeldet, und derselbe
 > Tooling-Report ist Pflichtteil jedes Updates. `--all` aktualisiert
-> alle in `~/.config/lhtask/registry` registrierten Repos — die Registry wird dabei nur
+> alle in `~/.config/sprint/registry` registrierten Repos — die Registry wird dabei nur
 > **konsumiert** (Registrieren ist ausschließlich Sache des Bootstrap, dort opt-in mit
 > expliziter Nachfrage; `update` registriert nie selbst).
 
@@ -538,18 +538,18 @@ flowchart TB
 
 ## 11. Konfiguration
 
-`lhtask.conf` ist die **einzige Wahrheitsquelle**. Achtung: die Defaults sind an drei
+`sprint.conf` ist die **einzige Wahrheitsquelle**. Achtung: die Defaults sind an drei
 Stellen dupliziert, die synchron bleiben müssen.
 
 ```mermaid
 flowchart LR
-    CONF["lhtask.conf<br/>(Ziel-Repo)"]
-    ENV["~/.config/lhtask/env<br/>(maschinen-lokal, Secrets —<br/>z. B. LHTASK_PROXY_TOKEN)"]
-    LIB["lhtask_load_config<br/>in lhtask-lib.sh"]
+    CONF["sprint.conf<br/>(Ziel-Repo)"]
+    ENV["~/.config/sprint/env<br/>(maschinen-lokal, Secrets —<br/>z. B. SPRINT_PROXY_TOKEN)"]
+    LIB["sprint_load_config<br/>in sprint-lib.sh"]
     HOOK["inline-Defaults<br/>in post-commit"]
 
     CONF -- "voll gesourct von allen Stages" --> LIB
-    ENV -- "NACH lhtask.conf gesourct<br/>(gewinnt; nie committet)" --> LIB
+    ENV -- "NACH sprint.conf gesourct<br/>(gewinnt; nie committet)" --> LIB
     CONF -- "nur REVIEW_DIRS + CODEGRAPH<br/>vor dem lib-source" --> HOOK
     LIB -. "müssen synchron sein" .-> HOOK
 
@@ -559,27 +559,27 @@ flowchart LR
 
 | Key | Bedeutung |
 | --- | --- |
-| `LHTASK_REVIEW_DIRS` | Dirs, deren Änderung die Review-Stage triggert (z. B. `src tests`) |
-| `LHTASK_TEST_CMD` | Legacy-Testkommando; Fallback für `LHTASK_GATE_TEST`; `{path}` → Ziel |
-| `LHTASK_CONSTITUTION_FILES` | Dateien, die jede Stage zuerst liest (default `AGENTS.md`) |
-| `LHTASK_IMPL_BRANCH` | Branch der Implement-Stage (default `autoplan/impl`) |
-| `LHTASK_DELIVERY` | `branch` (default: Ergebnis bleibt auf dem Impl-Branch) \| `apply` (VOLL konvergierte Arbeit wird per `git merge --squash` **gestaged** in den Arbeitsbaum gelegt — der Mensch committet; nicht beweisbar konfliktfrei → Fallback auf `branch` mit Grund unter `### Delivery`, Branch bleibt als Backup) |
-| `LHTASK_VENV` | venv, das in den worktree gesymlinkt wird (Python); leer für Node/Go |
-| `LHTASK_CODEGRAPH` | `auto` \| `on` \| `off` |
-| `LHTASK_MODEL` | Globaler Modell-Override für headless-Läufe (leer = CLI-Default) |
-| `LHTASK_MODEL_PLAN` / `_PLANNER` / `_NAVIGATOR` / `_IMPLEMENTER` / `_REVIEWER_CORRECTNESS` / `_REVIEWER_CONVENTIONS` / `_REVIEW` | Modell pro Rolle/Stage; Auflösung rollenspezifisch → `LHTASK_MODEL` → CLI-Default (`lhtask_model_flags [rolle]`, pro Phase in `run_phase` aufgelöst) — so können Implementer und Reviewer auf **verschiedenen** Modellen laufen (keine gemeinsamen Blind Spots). Ein Wert `openrouter:<vendor>/<model>` läuft die Rolle **cross-vendor** über den Proxy ([`docs/CROSS-VENDOR.md`](docs/CROSS-VENDOR.md)) |
-| `LHTASK_PROXY_URL` | Anthropic-kompatibler übersetzender Proxy für `openrouter:`-Modelle (z. B. LiteLLM `/v1/messages`); leer/unerreichbar → Claude-Fallback, **laut** protokolliert (❌ `### Model fallbacks`) |
-| `LHTASK_PROXY_TOKEN` | Auth-Token für den Proxy — **nicht** ins committete Conf: in `~/.config/lhtask/env` setzen (nach `lhtask.conf` gesourct, gewinnt) |
-| `LHTASK_REVIEW_AUTONOMOUS` | `1` = In-Loop-Reviewer in der Implement-Schleife (`0` = Gate-only) |
-| `LHTASK_NOTIFY` | `1` = Desktop-Notification bei Review-Ende (kein Notifier installiert → ⚠️ im Tooling-Report) |
-| `LHTASK_STACK` | Stack für den Gate: `auto` (Marker-Dateien) \| `nextjs` \| `react` \| `node` \| `python` \| `php` \| `go` \| `rust` |
-| `LHTASK_GATE_LINT` / `_TYPECHECK` / `_TEST` / `_BUILD` | Gate-Kommandos je Check; leer = Stack-Default (Test: Fallback `LHTASK_TEST_CMD`); fehlendes Tool = skip, im Report als ⚠️ mit Install-Hinweis |
-| `LHTASK_FALLOW` | Fallow-Static-Analysis als fünfter Gate-Check: `auto` (läuft, falls installiert — PATH oder `./node_modules/.bin`) \| `off` |
-| `LHTASK_FALLOW_CMD` | Volles fallow-Kommando-Override (`{base}` → Basis-Ref); leer = `fallow audit --base {base} --gate new-only --format json --quiet` |
-| `LHTASK_MAX_ITER` | Max. Iterationen der implement↔gate↔review-Schleife (default 3) |
-| `LHTASK_PHASE_TIMEOUT` | Timeout (s) pro headless `claude -p`-Phase (default 600) |
-| `LHTASK_STREAM` | Live-Trace der Agent-Tool-Calls in `TODO.run.log`: `auto` (default; braucht jq — ohne jq wie `off`) \| `off` (Phase still bis zum Ende, Verhalten vor 0.9.0) |
-| `LHTASK_VISUAL_MAX_DIFF_RATIO` / `LHTASK_DEV_URL` | Stage 2 (visual reviewer — Scaffold, noch nicht verdrahtet) |
+| `SPRINT_REVIEW_DIRS` | Dirs, deren Änderung die Review-Stage triggert (z. B. `src tests`) |
+| `SPRINT_TEST_CMD` | Legacy-Testkommando; Fallback für `SPRINT_GATE_TEST`; `{path}` → Ziel |
+| `SPRINT_CONSTITUTION_FILES` | Dateien, die jede Stage zuerst liest (default `AGENTS.md`) |
+| `SPRINT_IMPL_BRANCH` | Branch der Implement-Stage (default `autoplan/impl`) |
+| `SPRINT_DELIVERY` | `branch` (default: Ergebnis bleibt auf dem Impl-Branch) \| `apply` (VOLL konvergierte Arbeit wird per `git merge --squash` **gestaged** in den Arbeitsbaum gelegt — der Mensch committet; nicht beweisbar konfliktfrei → Fallback auf `branch` mit Grund unter `### Delivery`, Branch bleibt als Backup) |
+| `SPRINT_VENV` | venv, das in den worktree gesymlinkt wird (Python); leer für Node/Go |
+| `SPRINT_CODEGRAPH` | `auto` \| `on` \| `off` |
+| `SPRINT_MODEL` | Globaler Modell-Override für headless-Läufe (leer = CLI-Default) |
+| `SPRINT_MODEL_PLAN` / `_PLANNER` / `_NAVIGATOR` / `_IMPLEMENTER` / `_REVIEWER_CORRECTNESS` / `_REVIEWER_CONVENTIONS` / `_REVIEW` | Modell pro Rolle/Stage; Auflösung rollenspezifisch → `SPRINT_MODEL` → CLI-Default (`sprint_model_flags [rolle]`, pro Phase in `run_phase` aufgelöst) — so können Implementer und Reviewer auf **verschiedenen** Modellen laufen (keine gemeinsamen Blind Spots). Ein Wert `openrouter:<vendor>/<model>` läuft die Rolle **cross-vendor** über den Proxy ([`docs/CROSS-VENDOR.md`](docs/CROSS-VENDOR.md)) |
+| `SPRINT_PROXY_URL` | Anthropic-kompatibler übersetzender Proxy für `openrouter:`-Modelle (z. B. LiteLLM `/v1/messages`); leer/unerreichbar → Claude-Fallback, **laut** protokolliert (❌ `### Model fallbacks`) |
+| `SPRINT_PROXY_TOKEN` | Auth-Token für den Proxy — **nicht** ins committete Conf: in `~/.config/sprint/env` setzen (nach `sprint.conf` gesourct, gewinnt) |
+| `SPRINT_REVIEW_AUTONOMOUS` | `1` = In-Loop-Reviewer in der Implement-Schleife (`0` = Gate-only) |
+| `SPRINT_NOTIFY` | `1` = Desktop-Notification bei Review-Ende (kein Notifier installiert → ⚠️ im Tooling-Report) |
+| `SPRINT_STACK` | Stack für den Gate: `auto` (Marker-Dateien) \| `nextjs` \| `react` \| `node` \| `python` \| `php` \| `go` \| `rust` |
+| `SPRINT_GATE_LINT` / `_TYPECHECK` / `_TEST` / `_BUILD` | Gate-Kommandos je Check; leer = Stack-Default (Test: Fallback `SPRINT_TEST_CMD`); fehlendes Tool = skip, im Report als ⚠️ mit Install-Hinweis |
+| `SPRINT_FALLOW` | Fallow-Static-Analysis als fünfter Gate-Check: `auto` (läuft, falls installiert — PATH oder `./node_modules/.bin`) \| `off` |
+| `SPRINT_FALLOW_CMD` | Volles fallow-Kommando-Override (`{base}` → Basis-Ref); leer = `fallow audit --base {base} --gate new-only --format json --quiet` |
+| `SPRINT_MAX_ITER` | Max. Iterationen der implement↔gate↔review-Schleife (default 3) |
+| `SPRINT_PHASE_TIMEOUT` | Timeout (s) pro headless `claude -p`-Phase (default 600) |
+| `SPRINT_STREAM` | Live-Trace der Agent-Tool-Calls in `TODO.run.log`: `auto` (default; braucht jq — ohne jq wie `off`) \| `off` (Phase still bis zum Ende, Verhalten vor 0.9.0) |
+| `SPRINT_VISUAL_MAX_DIFF_RATIO` / `SPRINT_DEV_URL` | Stage 2 (visual reviewer — Scaffold, noch nicht verdrahtet) |
 
 ---
 
@@ -587,8 +587,8 @@ flowchart LR
 
 ```bash
 tail -f TODO.run.log                        # Live-Trace jedes Agent-Tool-Calls (pro Trigger resettet)
-LHTASK_FOREGROUND=1 .githooks/post-commit   # getriggerte Stage synchron ausführen
-cat .git/lhtask-implement.log               # roher Per-Stage-Log
+SPRINT_FOREGROUND=1 .githooks/post-commit   # getriggerte Stage synchron ausführen
+cat .git/sprint-implement.log               # roher Per-Stage-Log
 touch .git/autoplan.disabled                # Killswitch (entfernen = wieder an)
 bash tests/smoke-test.sh                    # Smoke-Test: Unit-Teil (Modell-Auflösung + Tooling-Surface + apply-Delivery + Plan-Idle-Guard + Ampel-Zählung + Live-Stream-Trace, ohne claude) + E2E (Wegwerf-Repo, braucht claude-CLI)
 ```

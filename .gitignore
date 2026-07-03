@@ -12,9 +12,9 @@
 .claude/settings.json
 .claude/settings.local.json
 
-# LHTask runtime sidecars (also gitignored in target repos by bootstrap)
+# Sprint runtime sidecars (also gitignored in target repos by bootstrap)
 TODO.autoplan.md
 TODO.review.md
 TODO.run.log
-.lhtask-state/
+.sprint-state/
 .brief/

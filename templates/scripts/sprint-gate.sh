@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
-# lhtask-gate.sh — STAGE 2 deterministic quality GATE (NOT an LLM).
+# sprint-gate.sh — STAGE 2 deterministic quality GATE (NOT an LLM).
 #
-# Usage: lhtask-gate.sh <worktree-dir> <out-json>
+# Usage: sprint-gate.sh <worktree-dir> <out-json>
 #   Runs the stack-detected gate commands (lint / typecheck / test / build), each
 #   binary pass/fail, and writes a Shell-AUTHORED gate.json — the only machine-trusted
 #   structured artifact of the chain. Exit 0 = every check passed or was skipped;
@@ -11,7 +11,7 @@
 # Graceful no-op: a check whose command is unconfigured OR whose tool is not on PATH
 # is recorded as "skip", never a hard fail. No LLM, no network — fully deterministic.
 #
-# The orchestrator (lhtask-implement.sh) passes the iteration via LHTASK_ITER.
+# The orchestrator (sprint-implement.sh) passes the iteration via SPRINT_ITER.
 #
 set -uo pipefail   # deliberately NOT -e: every check must run and be aggregated.
 
@@ -21,13 +21,13 @@ unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_QUARANTINE_PATH 2>/dev
 
 WT="${1:-.}"
 OUT="${2:-/dev/stdout}"
-cd "$WT" 2>/dev/null || { echo "lhtask-gate: worktree '$WT' not found" >&2; exit 1; }
+cd "$WT" 2>/dev/null || { echo "sprint-gate: worktree '$WT' not found" >&2; exit 1; }
 
 # Source the shared lib + config from this worktree.
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || echo "$WT")"
-# shellcheck source=scripts/lhtask-lib.sh
-. "$ROOT/scripts/lhtask-lib.sh"
-lhtask_load_config
+# shellcheck source=scripts/sprint-lib.sh
+. "$ROOT/scripts/sprint-lib.sh"
+sprint_load_config
 
 # JSON string-literal encoder (dependency-free, portable across GNU/BSD): escapes \ and ",
 # turns tabs into \t, drops \r, and joins embedded newlines as \n. Keeps gate.json valid
@@ -55,8 +55,8 @@ if [ -z "$paths" ] || printf '%s' "$paths" | grep -Eq '[^A-Za-z0-9._/ -]'; then
   paths="."
 fi
 
-stack="${LHTASK_STACK:-auto}"; [ "$stack" = auto ] && stack="$(lhtask_detect_stack)"
-iter="${LHTASK_ITER:-0}"
+stack="${SPRINT_STACK:-auto}"; [ "$stack" = auto ] && stack="$(sprint_detect_stack)"
+iter="${SPRINT_ITER:-0}"
 verdict="pass"
 records=""
 
@@ -67,7 +67,7 @@ add_record() {  # name cmd status exit summary detail
 }
 
 for check in lint typecheck test build; do
-  cmd="$(lhtask_gate_cmd "$check")"
+  cmd="$(sprint_gate_cmd "$check")"
   if [ -z "$cmd" ]; then
     add_record "$check" "" skip "" "no command configured"
     continue
@@ -93,7 +93,7 @@ done
 # Exit 2 = fallow runtime/config error → recorded as skip, never a hard fail (an
 # analysis-tool problem must not block the chain). The raw JSON report is saved
 # next to the gate json (fallow.json) for the review surface + reviewer roles.
-fcmd="$(lhtask_fallow_cmd HEAD~1)"
+fcmd="$(sprint_fallow_cmd HEAD~1)"
 if [ -z "$fcmd" ]; then
   add_record fallow "" skip "" "fallow off or not installed"
 else

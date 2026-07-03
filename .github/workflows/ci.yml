@@ -21,11 +21,11 @@ jobs:
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
           shellcheck templates/githooks/post-commit || true
-          shellcheck templates/scripts/lhtask-lib.sh || true
-          shellcheck templates/scripts/lhtask-plan.sh || true
-          shellcheck templates/scripts/lhtask-implement.sh || true
-          shellcheck templates/scripts/lhtask-gate.sh || true
-          shellcheck templates/scripts/lhtask-review.sh || true
+          shellcheck templates/scripts/sprint-lib.sh || true
+          shellcheck templates/scripts/sprint-plan.sh || true
+          shellcheck templates/scripts/sprint-implement.sh || true
+          shellcheck templates/scripts/sprint-gate.sh || true
+          shellcheck templates/scripts/sprint-review.sh || true
           shellcheck scripts/docs-refresh.sh || true
 
       - name: Syntax-check all shell scripts

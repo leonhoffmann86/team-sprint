@@ -1,4 +1,4 @@
-# LHTask plugin — project commands. Run `make` (or `make help`) for the list.
+# Sprint plugin — project commands. Run `make` (or `make help`) for the list.
 # This repo has no build/test toolchain; these targets just wrap the setup + doc steps.
 .DEFAULT_GOAL := help
 

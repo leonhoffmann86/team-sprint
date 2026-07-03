@@ -1,6 +1,6 @@
 # TODO
 
-Open items — **human-owned**. Each active `- [ ]` item is picked up by the LHTask
+Open items — **human-owned**. Each active `- [ ]` item is picked up by the Sprint
 chain when you commit a change to this file.
 
 Skip convention (your lever to defer work):

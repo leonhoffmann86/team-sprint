@@ -30,18 +30,18 @@ implementer          ─ (no injection) ─────────────�
    ```
 
 3. `OPENROUTER_API_KEY=sk-or-… litellm --config litellm-config.yaml --port 4000`
-4. In the target repo's `lhtask.conf`:
+4. In the target repo's `sprint.conf`:
 
    ```bash
-   LHTASK_PROXY_URL="http://localhost:4000"
-   LHTASK_MODEL_REVIEWER_CORRECTNESS="openrouter:openai/gpt-5.2"
+   SPRINT_PROXY_URL="http://localhost:4000"
+   SPRINT_MODEL_REVIEWER_CORRECTNESS="openrouter:openai/gpt-5.2"
    ```
 
 5. Proxy auth token (if your LiteLLM requires one) goes in the **machine-local**
-   `~/.config/lhtask/env` (sourced after `lhtask.conf`, never committed):
+   `~/.config/sprint/env` (sourced after `sprint.conf`, never committed):
 
    ```bash
-   LHTASK_PROXY_TOKEN="sk-litellm-…"
+   SPRINT_PROXY_TOKEN="sk-litellm-…"
    ```
 
 ## Graceful — but never silent
@@ -57,7 +57,7 @@ Degradation is acceptable; *unnoticed* degradation is not:
 - Every recorded fallback is surfaced as **❌ in `TODO.review.md`** under
   `### Model fallbacks`, which raises the `## 🔎 Review-Findings` pointer in
   `TODO.md` and an `AGENT_LOG.md` entry (and a desktop notification with
-  `LHTASK_NOTIFY=1`). Treat it as a defect to fix: your change was reviewed, but
+  `SPRINT_NOTIFY=1`). Treat it as a defect to fix: your change was reviewed, but
   **not** by the foreign model you configured.
 
 ## Recommendations

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Constitution for autonomous and assisted agents in this repo. The LHTask chain
+Constitution for autonomous and assisted agents in this repo. The Sprint chain
 (plan → implement → review) reads this file first and is bound by it.
 
 ## Core Principles
@@ -55,7 +55,7 @@ Constitution for autonomous and assisted agents in this repo. The LHTask chain
 
 - Smallest change that fully solves the item.
 - The **deterministic gate is green**: every configured check (lint / typecheck / test / build —
-  see the `LHTASK_GATE_*` / `LHTASK_STACK` keys, or the legacy `LHTASK_TEST_CMD`) passed or was
+  see the `SPRINT_GATE_*` / `SPRINT_STACK` keys, or the legacy `SPRINT_TEST_CMD`) passed or was
   skipped because its tool is absent. A red gate loops back to the implementer, never ships.
 - No `blocker`/`major` reviewer findings remain (correctness + conventions reviewers).
 - An `AGENT_LOG.md` entry (what, why, which checks are green).
@@ -65,7 +65,7 @@ Constitution for autonomous and assisted agents in this repo. The LHTask chain
 ## Merge discipline (read this)
 
 The implement stage runs a bounded loop and may produce **several unmerged commits per run** on the
-impl branch (`LHTASK_IMPL_BRANCH`), in a throwaway worktree that is **hard-reset each run**. Nothing
+impl branch (`SPRINT_IMPL_BRANCH`), in a throwaway worktree that is **hard-reset each run**. Nothing
 is ever auto-merged. Review (`git log <impl-branch>`) and **merge or discard promptly** — an
 abandoned impl branch will be overwritten by the next run.
 

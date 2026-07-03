@@ -1,6 +1,6 @@
 {
-  "name": "lhtask",
-  "version": "0.9.0",
+  "name": "sprint",
+  "version": "1.0.0",
   "description": "Autonomous TODO workflow: refine an idea into one structured TODO item, then a git-hook chain plans → implements (subagent team + deterministic gate, isolated worktree, never auto-merged) → reviews it. Language-agnostic, config-driven, bootstrapped into any repo.",
   "author": {
     "name": "Leon Hoffmann",
@@ -8,6 +8,6 @@
   },
   "license": "MIT",
   "keywords": ["autonomous", "multi-agent", "code-review", "git-hooks", "workflow", "ci-cd"],
-  "homepage": "https://github.com/leonhoffmann86/lhtask-plugin",
-  "repository": "https://github.com/leonhoffmann86/lhtask-plugin"
+  "homepage": "https://github.com/leonhoffmann86/team-sprint",
+  "repository": "https://github.com/leonhoffmann86/team-sprint"
 }

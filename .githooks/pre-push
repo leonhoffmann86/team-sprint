@@ -12,14 +12,14 @@
 #
 # Activate once per clone:  git config core.hooksPath .githooks
 # Levers:
-#   LHTASK_DOCS_SKIP=1            # skip the refresh for one push
+#   SPRINT_DOCS_SKIP=1            # skip the refresh for one push
 #   .git/docs-refresh.disabled   # kill switch (touch to disable, rm to re-enable)
 #
 set -euo pipefail
 
 # Recursion guard: the doc commit we push ourselves must not re-enter this hook.
-[ -n "${LHTASK_DOCS_PUSH_GUARD:-}" ] && exit 0
-[ -n "${LHTASK_DOCS_SKIP:-}" ] && exit 0
+[ -n "${SPRINT_DOCS_PUSH_GUARD:-}" ] && exit 0
+[ -n "${SPRINT_DOCS_SKIP:-}" ] && exit 0
 
 ROOT="$(git rev-parse --show-toplevel)"
 [ -f "$ROOT/.git/docs-refresh.disabled" ] && exit 0
@@ -69,13 +69,13 @@ fi
 
 echo "→ Committing refreshed docs and pushing them along …"
 git add CLAUDE.md ARCHITECTURE.md README.md
-LHTASK_DOCS_PUSH_GUARD=1 git commit -q -m "docs: auto-refresh CLAUDE/ARCHITECTURE/README from sources
+SPRINT_DOCS_PUSH_GUARD=1 git commit -q -m "docs: auto-refresh CLAUDE/ARCHITECTURE/README from sources
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 # Push the doc commit ourselves (guarded so this hook doesn't recurse). Afterwards the original
 # push of the old tip is a no-op — the remote already contains it as an ancestor.
-if LHTASK_DOCS_PUSH_GUARD=1 git push "$REMOTE" "HEAD:$BRANCH"; then
+if SPRINT_DOCS_PUSH_GUARD=1 git push "$REMOTE" "HEAD:$BRANCH"; then
   echo "✓ Docs refreshed, committed and pushed on $BRANCH."
 else
   echo "pre-push: pushing the doc commit failed — it is committed locally; push it manually." >&2

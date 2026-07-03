@@ -1,6 +1,6 @@
 ---
-name: lh-task
-description: Turn a rough idea or question into ONE clean, structured TODO.md item — grounded in the real codebase and refined with the user — ready to trigger the LHTask plan→implement→review hook chain. Use when capturing a task, triaging a "should we…?" question, or queuing work for the autonomous chain.
+name: ticket
+description: Turn a rough idea or question into ONE clean, structured TODO.md item — grounded in the real codebase and refined with the user — ready to trigger the Sprint plan→implement→review hook chain. Use when capturing a task, triaging a "should we…?" question, or queuing work for the autonomous chain.
 argument-hint: <rough idea or question, like a quick TODO note>
 ---
 
@@ -14,11 +14,11 @@ This is a refinement workflow, not an implementation. **Do not write code.** Do 
 ## 1. Read the constitution
 Find the project's constitution files and read them — obey their conventions, especially the
 **risk tiers** and any autonomous-agent / TODO-lifecycle rules.
-- If `lhtask.conf` exists, read the files listed in `LHTASK_CONSTITUTION_FILES` (in order).
+- If `sprint.conf` exists, read the files listed in `SPRINT_CONSTITUTION_FILES` (in order).
 - Otherwise read whichever of `AGENTS.md`, `CLAUDE.md` exist (and any project-specific guide they
   reference, e.g. a frontend `CLAUDE.md`).
 - Skim `.githooks/README.md` if present, so you describe the downstream effect correctly.
-If none of these exist, tell the user the repo isn't bootstrapped yet and offer `/lhtask:bootstrap`.
+If none of these exist, tell the user the repo isn't bootstrapped yet and offer `/sprint:bootstrap`.
 
 ## 2. Ground the idea in the real code (don't guess)
 Find the actual symbols/files the idea touches and its blast radius:
